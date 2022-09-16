@@ -1,0 +1,17 @@
+keychain:
+  app_key: 4b22fb92c6656fd839b092c95608219d
+  device_key: 24aa0c70d4bda6b8b780df057a7db502
+  network_key: bcff4596f931a7b8f596d667df96daff
+local:
+  address: 1
+  iv_index: 5
+nodes:
+  3f557c74-f326-7e39-b8ed-472cca61e9cd:
+    count: 1
+    unicast: 5
+  e6a7af68-7177-c032-a149-33618817359c:
+    count: 1
+    unicast: 4
+prov:
+  base_address: 6
+scan: {}
