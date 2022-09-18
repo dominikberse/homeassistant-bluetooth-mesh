@@ -34,6 +34,11 @@ class ProvisionerModule(Module):
             self.print_node_list()
             return
 
+        if args.task == 'config' and args.uuid is None:
+            for node in self.app.nodes.all():
+                await self._configure(node.uuid, node.unicast)
+            return
+
         try:
             uuid = UUID(args.uuid)
         except:
@@ -45,17 +50,17 @@ class ProvisionerModule(Module):
             self.print_node_list()
             return
 
-        if not self.app.nodes.has(str(uuid)):
+        node = self.app.nodes.get(uuid)
+        if node is None:
             print('Unknown node')
             return
-        node = self.app.nodes.get(str(uuid))
         
         if args.task == 'config':
-            await self._configure(uuid, node['unicast'])
+            await self._configure(uuid, node.unicast)
             return
 
         if args.task == 'reset':
-            await self._reset(uuid, node['unicast'])
+            await self._reset(uuid, node.unicast)
             self.print_node_list()
             return
 
@@ -66,9 +71,9 @@ class ProvisionerModule(Module):
         Print user friendly node list
         """
 
-        print(f'\nMesh contains {len(self.app.nodes.items())} node(s):')
-        for uuid, node in self.app.nodes.items():
-            print(f'\t{uuid}: unicast {node["unicast"]}')
+        print(f'\nMesh contains {len(self.app.nodes)} node(s):')
+        for node in self.app.nodes.all():
+            node.print_info()
 
     def _request_prov_data(self, count):
         """
@@ -102,7 +107,8 @@ class ProvisionerModule(Module):
         """
         _uuid = UUID(bytes=uuid)
 
-        self.app.nodes.set(str(_uuid), {
+        self.app.nodes.create(_uuid, {
+            'type': 'generic',
             'unicast': unicast,
             'count': count,
         })
@@ -139,12 +145,27 @@ class ProvisionerModule(Module):
         client = self.app.elements[0][models.ConfigClient]
 
         # add application key
-        status = await client.add_app_key(
-            address, net_index=0,
-            app_key_index=self.app.app_keys[0][0],
-            net_key_index=self.app.app_keys[0][1],
-            app_key=self.app.app_keys[0][2]
-        )
+        try:
+            status = await client.add_app_key(
+                address, net_index=0,
+                app_key_index=self.app.app_keys[0][0],
+                net_key_index=self.app.app_keys[0][1],
+                app_key=self.app.app_keys[0][2]
+            )
+        except:
+            logging.exception(f'Failed to add app key for node {uuid}')
+
+            status = await client.delete_app_key(
+                address, net_index=0,
+                app_key_index=self.app.app_keys[0][0],
+                net_key_index=self.app.app_keys[0][1]
+            )
+            status = await client.add_app_key(
+                address, net_index=0,
+                app_key_index=self.app.app_keys[0][0],
+                net_key_index=self.app.app_keys[0][1],
+                app_key=self.app.app_keys[0][2]
+            )
 
     async def _reset(self, uuid, address):
         logging.info(f'Resetting node {uuid} (address)...')

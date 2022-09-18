@@ -9,7 +9,7 @@ from uuid import UUID
 from bluetooth_mesh.application import Application, Element
 from bluetooth_mesh.crypto import ApplicationKey, DeviceKey, NetworkKey
 from bluetooth_mesh.messages.config import GATTNamespaceDescriptor
-from bluetooth_mesh.models import ConfigClient, HealthClient, GenericOnOffServer, GenericOnOffClient
+from bluetooth_mesh.models import ConfigClient, HealthClient, GenericOnOffServer, GenericOnOffClient, LightLightnessClient
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -20,7 +20,8 @@ class MainElement(Element):
     MODELS = [
         ConfigClient,
         HealthClient,
-        GenericOnOffClient
+        GenericOnOffClient,
+        LightLightnessClient,
     ]
 
 
@@ -32,7 +33,7 @@ class SampleApplication(Application):
         0: MainElement,
     }
     CRPL = 32768
-    PATH = "/com/silvair/sample"
+    PATH = "/org/hass/mesh"
 
     def __init__(self, loop):
         super().__init__(loop)
@@ -112,14 +113,22 @@ class SampleApplication(Application):
     async def configure(self, addr):
         client = self.elements[0][ConfigClient]
 
-        status = await client.add_app_key(
-            addr, net_index=0,
-            app_key_index=self.app_keys[0][0],
-            net_key_index=self.app_keys[0][1],
-            app_key=self.app_keys[0][2]
-        )
+        try:
+            status = await client.add_app_key(
+                addr, net_index=0,
+                app_key_index=self.app_keys[0][0],
+                net_key_index=self.app_keys[0][1],
+                app_key=self.app_keys[0][2]
+            )
+        except:
+            status = await client.delete_app_key(
+                addr, net_index=0,
+                app_key_index=self.app_keys[0][0],
+                net_key_index=self.app_keys[0][1]
+            )
+            logging.info(f'Failed to add client app key')
 
-        print(status)
+        # print(status)
 
         #assert status == StatusCode.SUCCESS, \
         #    f'Cannot add application key: {status}'
@@ -168,9 +177,13 @@ class SampleApplication(Application):
         self.address = 1
         self.iv_index = 5
 
+        print(self.app_keys)
+        print(self.app_keys[0][2].bytes.hex())
+
         async with self:
             try:
                 await self.connect()
+                # await self.delete_app_key(0, 0)
                 await self.add_app_key(*self.app_keys[0])
                 await self.scan()
             
@@ -188,7 +201,7 @@ class SampleApplication(Application):
 
                     await self.management_interface.import_app_key(*self.app_keys[0])
 
-                uuid = 'e6a7af68-7177-c032-a149-33618817359c'
+                uuid = 'ecce3aa9-3915-5236-b795-4a2bb919b83f'
 
                 if uuid not in self.mesh['nodes']:
                     await self.management_interface.add_node(UUID(uuid))

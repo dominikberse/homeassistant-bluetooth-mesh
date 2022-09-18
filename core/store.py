@@ -10,6 +10,9 @@ class Store:
         self._location = location
         self._delegate = delegate
 
+        if not self._location and not self._delegate:
+            raise Exception('Either delegate or location must be specified')
+
         if self._location:
             with open(self._location, 'r') as store_file:
                 self._data = yaml.safe_load(store_file)
@@ -17,7 +20,7 @@ class Store:
             self._data = data
 
         if self._data is None:
-            self._data = {}
+            raise Exception('Store data not available')
 
     def persist(self):
         if self._delegate:
@@ -29,14 +32,15 @@ class Store:
             with open(self._location, 'w') as store_file:
                 yaml.dump(self._data, store_file)
 
-    def section(self, name):
+    def section(self, name, subclass=None):
         """
         Return a new sub-store that will persist to same location
         """
         if name not in self._data:
             self._data[name] = {}
-
-        return Store(delegate=self, data=self._data[name])
+        if subclass is None:
+            subclass = Store
+        return subclass(delegate=self, data=self._data[name])
 
     def get(self, name, fallback=None):
         if name not in self._data:
@@ -53,7 +57,7 @@ class Store:
         del self._data[name]
 
     def reset(self):
-        self._data = {}
+        self._data.clear()
 
     def items(self):
         return self._data.items()

@@ -1,11 +1,9 @@
-
-
 class Module:
     """
     Base class for all modules
 
     Defines interfaces that can be used to hide modules behind various views,
-    like i.e. a command line interface or an HTTP interface.
+    like i.e. a command line interface or an HTTP or MQTT interface.
     """
 
     def __init__(self):
@@ -31,3 +29,4 @@ class Module:
         Run from CLI
         """
         pass
+

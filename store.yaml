@@ -6,12 +6,30 @@ local:
   address: 1
   iv_index: 5
 nodes:
+  0118d7b3-1494-fa32-8538-51bb39d21071:
+    count: 2
+    type: light
+    unicast: 17
+  0355c382-6ff3-2330-8fca-6face349427a:
+    count: 2
+    type: light
+    unicast: 12
   3f557c74-f326-7e39-b8ed-472cca61e9cd:
     count: 1
-    unicast: 5
+    type: light
+    unicast: 15
+  e0827bfb-db9d-ea3c-919e-137252c62f6f:
+    count: 1
+    type: light
+    unicast: 16
   e6a7af68-7177-c032-a149-33618817359c:
     count: 1
-    unicast: 4
+    type: light
+    unicast: 14
+  ecce3aa9-3915-5236-b795-4a2bb919b83f:
+    count: 2
+    type: light
+    unicast: 10
 prov:
-  base_address: 6
+  base_address: 19
 scan: {}

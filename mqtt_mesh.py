@@ -1,11 +1,10 @@
 import asyncio
 import logging
 import secrets
-import yaml 
 import argparse
+import uuid
 
-from contextlib import suppress
-from uuid import UUID
+from contextlib import AsyncExitStack, asynccontextmanager, suppress
 
 from bluetooth_mesh.application import Application, Element
 from bluetooth_mesh.crypto import ApplicationKey, DeviceKey, NetworkKey
@@ -14,17 +13,26 @@ from bluetooth_mesh import models
 
 from core.store import Store
 from core.config import Config
+from core.node import Node, NodeManager
+from mqtt.messenger import Messenger
 
 from modules.provisioner import ProvisionerModule
 from modules.scanner import ScannerModule
+from nodes.light import Light
 
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 
-MODULES = {
+MESH_MODULES = {
     "prov": ProvisionerModule(),
     "scan": ScannerModule(),
+}
+
+
+NODE_TYPES = {
+    'generic': Node,
+    'light': Light,
 }
 
 
@@ -58,14 +66,16 @@ class MqttGateway(Application):
         self._store = Store(location='store.yaml')
         self._config = Config('config.yaml')
         self._nodes = {}
+        
+        self._messenger = None
 
         self._app_keys = None
         self._dev_key = None
         self._primary_net_key = None
         self._new_keys = set()
 
-        # load modules
-        for name, module in MODULES.items():
+        # load mesh modules
+        for name, module in MESH_MODULES.items():
             module.initialize(self, self._store.section(name), self._config)
 
         self._initialize()
@@ -98,14 +108,14 @@ class MqttGateway(Application):
             keychain[name] = secrets.token_hex(16)
             self._new_keys.add(name)
         try:
-            return bytes.fromhex(keychain['device_key'])
+            return bytes.fromhex(keychain[name])
         except:
             raise Exception('Invalid device key')
 
     def _initialize(self):
         keychain = self._store.get('keychain') or {}
         local = self._store.section('local')
-        self._nodes = self._store.section('nodes')
+        nodes = self._store.section('nodes')
 
         # load or set application parameters
         self.address = local.get('address', 1)
@@ -119,6 +129,15 @@ class MqttGateway(Application):
                 (0, 0, ApplicationKey(self._load_key(keychain, 'app_key'))),
             ]
 
+        # initialize node manager
+        self._nodes = NodeManager(nodes, NODE_TYPES)
+        for node in self._nodes.all():
+            # append Home Assistant specific configuration
+            node.hass = self._config.node_config(node.uuid)
+
+        # initialize MQTT messenger
+        self._messenger = Messenger(self._config, self._nodes)
+
         # persist changes
         self._store.set('keychain', keychain)
         self._store.persist()
@@ -129,28 +148,42 @@ class MqttGateway(Application):
             await self.management_interface.import_subnet(0, self.primary_net_key[1])
 
         if 'app_key' in self._new_keys:
-            # TODO: check whether this step is actually neccessary
+            # import application key into daemon
             await self.management_interface.import_app_key(*self.app_keys[0])    
-            # TODO: check whether this needs to be done always
-            await self.add_app_key(*self.app_keys[0])
+
+        # update application key for client models
+        client = self.elements[0][models.GenericOnOffClient]
+        await client.bind(self.app_keys[0][0])
+        client = self.elements[0][models.LightLightnessClient]
+        await client.bind(self.app_keys[0][0])
 
     def scan_result(self, rssi, data, options):
-        MODULES['scan']._scan_result(rssi, data, options)
+        MESH_MODULES['scan']._scan_result(rssi, data, options)
 
     def request_prov_data(self, count):
-        return MODULES['prov']._request_prov_data(count)
+        return MESH_MODULES['prov']._request_prov_data(count)
 
     def add_node_complete(self, uuid, unicast, count):
-        MODULES['prov']._add_node_complete(uuid, unicast, count)
+        MESH_MODULES['prov']._add_node_complete(uuid, unicast, count)
 
     def add_node_failed(self, uuid, reason):
-        MODULES['prov']._add_node_failed(uuid, reason)
+        MESH_MODULES['prov']._add_node_failed(uuid, reason)
 
     async def run(self, args):
         async with self:
 
             # connect to daemon
             await self.connect()
+
+            try:
+                # set overall application key
+                await self.add_app_key(*self.app_keys[0])
+            except:
+                logging.exception(f'Failed to set app key {self._app_keys[0][2].bytes.hex()}')
+
+                # try to re-add application key
+                await self.delete_app_key(self.app_keys[0][0], self.app_keys[0][1])
+                await self.add_app_key(*self.app_keys[0])
 
             # reset everything
             if args.reset:
@@ -163,36 +196,20 @@ class MqttGateway(Application):
             await self._import_keys()
 
             # run user task if specified
-            if args.handler:
+            if 'handler' in args:
                 await args.handler(args)
                 return
 
-            if task == 'set_onoff':
-                nodes = self._store.get('nodes') or {}
-                if uuid not in nodes:
-                    logging.error('Unknown node')
-            
-                client = self.elements[0][models.ConfigClient]
-
-                status = await client.bind_app_key(
-                    nodes[uuid]['unicast'], net_index=0,
-                    element_address=nodes[uuid]['unicast'],
-                    app_key_index=self.app_keys[0][0],
-                    model=models.GenericOnOffServer
-                )
-
-                client = self.elements[0][models.GenericOnOffClient]
-
-                await client.bind(self.app_keys[0][0])
-                await client.set_onoff_unack(
-                    nodes[uuid]['unicast'], 
-                    self.app_keys[0][0], 
-                    int(value), 
-                    send_interval=0.5)
-
-                return
+            # initialize all nodes
+            for node in self._nodes.all():
+                try:
+                    await node.bind(self)
+                    logging.info(f'Bound node {node}')
+                except:
+                    logging.exception(f'Failed to bind node {node}')
 
             # run main task
+            await self._messenger.run(self)
 
 
 def main():
@@ -204,7 +221,7 @@ def main():
 
     # module specific CLI interfaces
     subparsers = parser.add_subparsers()
-    for name, module in MODULES.items():
+    for name, module in MESH_MODULES.items():
         subparser = subparsers.add_parser(name)
         subparser.set_defaults(handler=module.handle_cli)
         module.setup_cli(subparser)

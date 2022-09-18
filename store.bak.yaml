@@ -3,15 +3,18 @@ keychain:
   device_key: 24aa0c70d4bda6b8b780df057a7db502
   network_key: bcff4596f931a7b8f596d667df96daff
 local:
-  iv_index: 5
   address: 1
+  iv_index: 5
 nodes:
-  e6a7af68-7177-c032-a149-33618817359c:
-    count: 1
-    unicast: 4
   3f557c74-f326-7e39-b8ed-472cca61e9cd:
     count: 1
     unicast: 5
-modules:
-  provisioner:
-    base_address: 5
+  e6a7af68-7177-c032-a149-33618817359c:
+    count: 1
+    unicast: 4
+  ecce3aa9-3915-5236-b795-4a2bb919b83f:
+    count: 2
+    unicast: 6
+prov:
+  base_address: 8
+scan: {}
