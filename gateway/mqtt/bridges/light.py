@@ -1,7 +1,3 @@
-import asyncio
-import logging
-import json
-
 from mqtt.bridge import HassMqttBridge
 
 

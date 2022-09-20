@@ -7,7 +7,7 @@ from contextlib import AsyncExitStack
 from mesh import Node
 from tools import Tasks
 
-from mqtt.bridges import light
+from .bridges import light
 
 
 BRIDGES = {

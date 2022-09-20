@@ -13,7 +13,7 @@ from bluetooth_mesh import models
 
 from tools import Config, Store, Tasks
 from mesh import Node, NodeManager
-from mqtt.messenger import HassMqttMessenger
+from mqtt import HassMqttMessenger
 
 from modules.provisioner import ProvisionerModule
 from modules.scanner import ScannerModule
