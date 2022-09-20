@@ -1,2 +1,7 @@
 .venv/
 __pycache__/
+
+# configuration files
+config.yaml
+store.yaml
+store.bak.yaml
