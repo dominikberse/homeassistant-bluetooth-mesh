@@ -4,7 +4,7 @@ import secrets
 import argparse
 import uuid
 
-from contextlib import AsyncExitStack, asynccontextmanager, suppress
+from contextlib import AsyncExitStack, suppress
 
 from bluetooth_mesh.application import Application, Element
 from bluetooth_mesh.crypto import ApplicationKey, DeviceKey, NetworkKey
@@ -14,7 +14,8 @@ from bluetooth_mesh import models
 from core.store import Store
 from core.config import Config
 from core.node import Node, NodeManager
-from mqtt.messenger import Messenger
+from core.tasks import TaskContextManager
+from mqtt.messenger import HassMqtt
 
 from modules.provisioner import ProvisionerModule
 from modules.scanner import ScannerModule
@@ -136,7 +137,7 @@ class MqttGateway(Application):
             node.hass = self._config.node_config(node.uuid)
 
         # initialize MQTT messenger
-        self._messenger = Messenger(self._config, self._nodes)
+        self._messenger = HassMqtt(self._config, self._nodes)
 
         # persist changes
         self._store.set('keychain', keychain)
@@ -157,6 +158,14 @@ class MqttGateway(Application):
         client = self.elements[0][models.LightLightnessClient]
         await client.bind(self.app_keys[0][0])
 
+    async def _try_bind_node(self, node):
+        try:
+            await node.bind(self)
+            logging.info(f'Bound node {node}')
+        except:
+            logging.exception(f'Failed to bind node {node}')
+        
+
     def scan_result(self, rssi, data, options):
         MESH_MODULES['scan']._scan_result(rssi, data, options)
 
@@ -169,10 +178,15 @@ class MqttGateway(Application):
     def add_node_failed(self, uuid, reason):
         MESH_MODULES['prov']._add_node_failed(uuid, reason)
 
+    def shutdown(self, tasks):
+        self._messenger.shutdown()
+
     async def run(self, args):
-        async with self:
+        async with AsyncExitStack() as stack:
+            tasks = await stack.enter_async_context(TaskContextManager())
 
             # connect to daemon
+            await stack.enter_async_context(self)
             await self.connect()
 
             try:
@@ -202,15 +216,13 @@ class MqttGateway(Application):
 
             # initialize all nodes
             for node in self._nodes.all():
-                try:
-                    await node.bind(self)
-                    logging.info(f'Bound node {node}')
-                except:
-                    logging.exception(f'Failed to bind node {node}')
+                tasks.spawn(self._try_bind_node(node))
 
-            # run main task
-            await self._messenger.run(self)
+            # start MQTT task
+            tasks.spawn(self._messenger.run(self))
 
+            # wait for all tasks
+            await tasks.gather()
 
 def main():
     loop = asyncio.get_event_loop()

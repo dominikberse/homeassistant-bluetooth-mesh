@@ -15,6 +15,9 @@ class Node:
         self.count = count
         self.hass = None
 
+        self._subscribers = set()
+        self._state = {}
+
     def __str__(self):
         id = self.hass and self.hass.optional('id')
         
@@ -22,11 +25,42 @@ class Node:
             return f'{id} ({self.uuid}, {self.unicast:04})' 
         return f'{self.uuid} ({self.unicast:04})'
 
+    def _get(self, property):
+        """
+        Get property from state
+        """
+        return self._state.get(property)
+    
+    def _set(self, property, value):
+        """
+        Set state property and notify about change
+        """
+        if self._state.get(property) == value:
+            return
+        if value is None:
+            del self._state[property]
+        else:
+            self._state[property] = value
+        self.notify(property, value)
+
     async def bind(self, app):
         """
         Configure the node to work with the available mesh clients
         """
         self._app = app
+
+    def subscribe(self, subscriber):
+        """
+        Subscribe to state changes
+        """
+        self._subscribers.add(subscriber)
+
+    def notify(self, property, value):
+        """
+        Notify all subscribers about state change
+        """
+        for subscriber in self._subscribers:
+            subscriber(self, property, value)
 
     def print_info(self):
         print(

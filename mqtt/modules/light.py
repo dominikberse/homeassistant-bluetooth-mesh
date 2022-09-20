@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import json
 
 from mqtt.module import MessengerModule
 
@@ -11,8 +12,13 @@ class LightModule(MessengerModule):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def config(self, node):
-        return {
+    @property
+    def component(self):
+        return 'light'
+
+    async def config(self, node):
+        await self._messenger.publish(self.component, node, 'config', {
+            '~': self._messenger.node_topic(self.component, node),
             "name": node.hass.optional('name'),
             "unique_id": node.hass.require('id'),
             "object_id": node.hass.require('id'),
@@ -20,17 +26,15 @@ class LightModule(MessengerModule):
             "stat_t": "~/state",
             "schema": "json",
             "brightness": True
-        }
+        })
 
-    def state(self, node):
-        return {
+    async def state(self, node):
+        await self._messenger.publish(self.component, node, 'state', {
             'state': 'ON' if node.onoff else 'OFF'
-        }
+        }, retain=True)
 
-    async def handle(self, node, command, payload):
-        """
-        Handle a specific MQTT command
-        """
-        if command == 'set':
-            await node.set_onoff_unack(payload['state'] == 'ON')
-            return self.state(node)
+    async def _mqtt_set(self, node, payload):
+        await node.set_onoff_unack(payload['state'] == 'ON')
+
+    async def _node_onoff(self, node, onoff):
+        await self.state(node)

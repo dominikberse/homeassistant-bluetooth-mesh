@@ -1,4 +1,5 @@
 import asyncio
+import logging
 
 from core.node import Node
 
@@ -9,15 +10,14 @@ class Light(Node):
     """
     Adds support for simple lights
     """
+    OnOffProperty = 'onoff'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self._onoff = False
-
     @property
     def onoff(self):
-        return self._onoff
+        return self._get(Light.OnOffProperty)
 
     async def bind(self, app):
         await super().bind(app)
@@ -33,7 +33,20 @@ class Light(Node):
         await asyncio.sleep(1.0)
 
         # get initial state
-        client = app.elements[0][models.GenericOnOffClient]
+        await self.get_onoff()
+
+    async def set_onoff_unack(self, onoff):
+        self._set(Light.OnOffProperty, onoff)
+
+        client = self._app.elements[0][models.GenericOnOffClient]
+        await client.set_onoff_unack(
+            self.unicast, 
+            self._app.app_keys[0][0], 
+            onoff, 
+            send_interval=0.1)
+
+    async def get_onoff(self):
+        client = self._app.elements[0][models.GenericOnOffClient]
         state = await client.get_light_status(
             [self.unicast], 
             self._app.app_keys[0][0], 
@@ -41,16 +54,7 @@ class Light(Node):
         
         result = state[self.unicast]
         if not isinstance(result, BaseException):
-            self._onoff = result['present_onoff']
-
-    async def set_onoff_unack(self, onoff):
-        client = self._app.elements[0][models.GenericOnOffClient]
-        await client.set_onoff_unack(
-            self.unicast, 
-            self._app.app_keys[0][0], 
-            onoff, 
-            send_interval=0.1)
-        self._onoff = onoff
+            self._set(Light.OnOffProperty, result['present_onoff'])
 
     async def set_lightness_unack(self, lightness, transition_time=0.5):
         client = self._app.elements[0][models.LightLightnessClient]

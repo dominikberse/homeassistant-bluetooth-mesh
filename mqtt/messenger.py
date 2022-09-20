@@ -2,6 +2,10 @@ import json
 import logging
 
 from asyncio_mqtt.client import Client, MqttError
+from contextlib import AsyncExitStack
+
+from core.tasks import TaskContextManager
+from core.node import Node
 
 from mqtt.modules import light
 
@@ -11,64 +15,79 @@ MQTT_MODULES = {
 }
 
 
-class Messenger:
+class HassMqtt:
+    """
+    Provides home assistant specific MQTT functionality
+
+    Manages a set of modules for specific device types and 
+    manages tasks to receive and handle incoming messages.
+    """
     def __init__(self, config, nodes):
         self._config = config
         self._nodes = nodes
         self._modules = {}
         self._paths = {}
 
+        self._client = Client(self._config.require('mqtt.broker'))
         self._topic = config.optional('mqtt.topic', 'mqtt_mesh')
 
         # initialize modules
         for name, constructor in MQTT_MODULES.items():
             self._modules[name] = constructor(self)
 
-        for node in self._nodes.all():
-            # gives the unique object id used in Home Assistant
-            path = node.hass.optional('id')
-            # retrieve a compatible module for this node type
-            module = self._modules.get(node.type)
+    @property
+    def client(self):
+        return self._client
 
-            if path and module:
-                logging.info(f'Node {node} registered for MQTT')
-                self._paths[path] = (node, module)
-            else:
-                logging.warning(f'Node {node} not accessible over MQTT')
+    @property
+    def topic(self):
+        return self._topic
 
-    async def publish(self, node, path, client, topic, message):
-        await client.publish(
-            f'homeassistant/{node.type}/{self._topic}/{path}/{topic}', 
-            json.dumps(message).encode())
+    def node_topic(self, component, node):
+        """
+        Return base topic for a specific node
+        """
+        if isinstance(node, Node):
+            node = node.hass.require('id')
 
+        return f'homeassistant/{component}/{self._topic}/{node}'
+
+    def filtered_messages(self, component, node, topic='#'):
+        """
+        Shorthand to get messages for a specific node
+        """
+        return self._client.filtered_messages(
+            f'{self.node_topic(component, node)}/{topic}')
+
+    async def publish(self, component, node, topic, message, **kwargs):
+        """
+        Send a state update for a specific nde
+        """
+        await self._client.publish(
+            f'{self.node_topic(component, node)}/{topic}', 
+            json.dumps(message).encode(), **kwargs)
 
     async def run(self, app):
-        async with Client(self._config.require('mqtt.broker')) as client:
+        async with AsyncExitStack() as stack:
+            tasks = await stack.enter_async_context(TaskContextManager())
 
-            # send configuration messages for all nodes
-            for path, (node, module) in self._paths.items():
-                message = module.config(node)
-                await self.publish(node, path, client, 'config', {
-                    '~': f'homeassistant/{node.type}/{self._topic}/{path}',
-                    **message
-                })
-                await self.publish(node, path, client, 'state', module.state(node))
+            # connect to MQTT broker
+            await stack.enter_async_context(self._client)
 
-            # listen for node messages
-            async with client.filtered_messages(f'homeassistant/+/{self._topic}/#') as messages:
-                await client.subscribe("homeassistant/#")
-                async for message in messages:
-                    _, nodetype, _, path, command = message.topic.split('/')
-                    content = json.loads(message.payload.decode())
+            # spawn tasks for every node
+            for node in self._nodes.all():
+                module = self._modules.get(node.type)
 
-                    logging.info(f'Received message on {message.topic}:\n{content}')
+                if module is None:
+                    logging.warning(f'No MQTT module for node {node}')
+                    return
 
-                    try:
-                        node, module = self._paths[path]
-                        response = await module.handle(node, command, content)
+                tasks.spawn(module.listen(node))
+                # send node configuration for MQTT discovery
+                await module.config(node)
+            
+            # global subscription to messages
+            await self._client.subscribe("homeassistant/#")
 
-                        if response:
-                            await self.publish(node, path, client, 'state', response)
-                    except:
-                        logging.exception('Failed to handle message')
-
+            # wait for all tasks
+            await tasks.gather()
