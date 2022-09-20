@@ -2,9 +2,12 @@ import asyncio
 import logging
 
 
-class TaskContextManager:
+class Tasks:
     """
-    Simple task pool abstraction layer
+    Simple task pool
+
+    TODO: This class can be extended in order to manage failed tasks.
+    Currently failed tasks are logged but otherwise ignored.
     """
 
     def __init__(self):

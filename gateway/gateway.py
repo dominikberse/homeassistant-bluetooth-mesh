@@ -11,11 +11,9 @@ from bluetooth_mesh.crypto import ApplicationKey, DeviceKey, NetworkKey
 from bluetooth_mesh.messages.config import GATTNamespaceDescriptor
 from bluetooth_mesh import models
 
-from core.store import Store
-from core.config import Config
 from core.node import Node, NodeManager
-from core.tasks import TaskContextManager
 from mqtt.messenger import HassMqtt
+from tools import Config, Store, Tasks
 
 from modules.provisioner import ProvisionerModule
 from modules.scanner import ScannerModule
@@ -64,8 +62,8 @@ class MqttGateway(Application):
     def __init__(self, loop):
         super().__init__(loop)
 
-        self._store = Store(location='store.yaml')
-        self._config = Config('config.yaml')
+        self._store = Store(location='../store.yaml')
+        self._config = Config('../config.yaml')
         self._nodes = {}
         
         self._messenger = None
@@ -183,7 +181,7 @@ class MqttGateway(Application):
 
     async def run(self, args):
         async with AsyncExitStack() as stack:
-            tasks = await stack.enter_async_context(TaskContextManager())
+            tasks = await stack.enter_async_context(Tasks())
 
             # connect to daemon
             await stack.enter_async_context(self)

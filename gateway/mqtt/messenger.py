@@ -4,8 +4,8 @@ import logging
 from asyncio_mqtt.client import Client, MqttError
 from contextlib import AsyncExitStack
 
-from core.tasks import TaskContextManager
 from core.node import Node
+from tools import Tasks
 
 from mqtt.modules import light
 
@@ -69,7 +69,7 @@ class HassMqtt:
 
     async def run(self, app):
         async with AsyncExitStack() as stack:
-            tasks = await stack.enter_async_context(TaskContextManager())
+            tasks = await stack.enter_async_context(Tasks())
 
             # connect to MQTT broker
             await stack.enter_async_context(self._client)
