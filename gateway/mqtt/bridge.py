@@ -3,11 +3,14 @@ import logging
 import asyncio
 
 
-class MessengerModule:
+class HassMqttBridge:
     """
-    Base class for all MQTT messenger modules
+    Base class for all MQTT messenger bridges
 
-    Provides default implementations, that should work for most common nodes.
+    Instances of this class are responsible for bridging between a Home Assistant
+    device type and a specific type of Bluetooth Mesh node.
+
+    This class provides default implementations, that should work for most common nodes.
     They can however be overriden, if more sophisticated behaviour is required.
     """
 

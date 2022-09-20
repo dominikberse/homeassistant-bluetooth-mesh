@@ -4,36 +4,36 @@ import logging
 from asyncio_mqtt.client import Client, MqttError
 from contextlib import AsyncExitStack
 
-from core.node import Node
+from mesh import Node
 from tools import Tasks
 
-from mqtt.modules import light
+from mqtt.bridges import light
 
 
-MQTT_MODULES = {
-    'light': light.LightModule,
+BRIDGES = {
+    'light': light.GenericLightBridge,
 }
 
 
-class HassMqtt:
+class HassMqttMessenger:
     """
     Provides home assistant specific MQTT functionality
 
-    Manages a set of modules for specific device types and 
+    Manages a set of bridges for specific device types and 
     manages tasks to receive and handle incoming messages.
     """
     def __init__(self, config, nodes):
         self._config = config
         self._nodes = nodes
-        self._modules = {}
+        self._bridges = {}
         self._paths = {}
 
         self._client = Client(self._config.require('mqtt.broker'))
         self._topic = config.optional('mqtt.topic', 'mqtt_mesh')
 
-        # initialize modules
-        for name, constructor in MQTT_MODULES.items():
-            self._modules[name] = constructor(self)
+        # initialize bridges
+        for name, constructor in BRIDGES.items():
+            self._bridges[name] = constructor(self)
 
     @property
     def client(self):
@@ -76,15 +76,15 @@ class HassMqtt:
 
             # spawn tasks for every node
             for node in self._nodes.all():
-                module = self._modules.get(node.type)
+                bridge = self._bridges.get(node.type)
 
-                if module is None:
-                    logging.warning(f'No MQTT module for node {node}')
+                if bridge is None:
+                    logging.warning(f'No MQTT bridge for node {node}')
                     return
 
-                tasks.spawn(module.listen(node))
+                tasks.spawn(bridge.listen(node))
                 # send node configuration for MQTT discovery
-                await module.config(node)
+                await bridge.config(node)
             
             # global subscription to messages
             await self._client.subscribe("homeassistant/#")

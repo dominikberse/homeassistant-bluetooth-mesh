@@ -1,14 +1,14 @@
 import asyncio
 import logging
 
-from core.node import Node
+from mesh import Node
 
 from bluetooth_mesh import models
 
 
 class Light(Node):
     """
-    Adds support for simple lights
+    Adds support for light nodes 
     """
     OnOffProperty = 'onoff'
 

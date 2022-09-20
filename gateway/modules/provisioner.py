@@ -5,7 +5,7 @@ from uuid import UUID
 
 from bluetooth_mesh import models
 
-from core.module import Module
+from . import Module
 
 
 class ProvisionerModule(Module):

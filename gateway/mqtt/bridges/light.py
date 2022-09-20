@@ -2,12 +2,12 @@ import asyncio
 import logging
 import json
 
-from mqtt.module import MessengerModule
+from mqtt.bridge import HassMqttBridge
 
 
-class LightModule(MessengerModule):
+class GenericLightBridge(HassMqttBridge):
     """
-    Home Assistant compatible MQTT module for lights
+    Generic bridge for lights
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

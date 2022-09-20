@@ -3,7 +3,7 @@ import asyncio
 
 from uuid import UUID
 
-from core.module import Module
+from . import Module
 
 
 class ScannerModule(Module):

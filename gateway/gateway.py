@@ -11,13 +11,14 @@ from bluetooth_mesh.crypto import ApplicationKey, DeviceKey, NetworkKey
 from bluetooth_mesh.messages.config import GATTNamespaceDescriptor
 from bluetooth_mesh import models
 
-from core.node import Node, NodeManager
-from mqtt.messenger import HassMqtt
 from tools import Config, Store, Tasks
+from mesh import Node, NodeManager
+from mqtt.messenger import HassMqttMessenger
 
 from modules.provisioner import ProvisionerModule
 from modules.scanner import ScannerModule
-from nodes.light import Light
+
+from mesh.nodes.light import Light
 
 
 logging.basicConfig(level=logging.INFO)
@@ -135,7 +136,7 @@ class MqttGateway(Application):
             node.hass = self._config.node_config(node.uuid)
 
         # initialize MQTT messenger
-        self._messenger = HassMqtt(self._config, self._nodes)
+        self._messenger = HassMqttMessenger(self._config, self._nodes)
 
         # persist changes
         self._store.set('keychain', keychain)
