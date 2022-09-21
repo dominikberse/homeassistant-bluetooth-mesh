@@ -17,6 +17,7 @@ from mqtt import HassMqttMessenger
 
 from modules.provisioner import ProvisionerModule
 from modules.scanner import ScannerModule
+from modules.manager import ManagerModule
 
 from mesh.nodes.light import Light
 
@@ -27,6 +28,7 @@ logging.basicConfig(level=logging.INFO)
 MESH_MODULES = {
     "prov": ProvisionerModule(),
     "scan": ScannerModule(),
+    "mgmt": ManagerModule(),
 }
 
 

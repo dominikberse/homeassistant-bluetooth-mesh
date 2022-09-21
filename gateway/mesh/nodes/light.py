@@ -1,16 +1,17 @@
 import asyncio
 import logging
 
-from mesh import Node
+from .generic import Generic
 
 from bluetooth_mesh import models
 
 
-class Light(Node):
+class Light(Generic):
     """
     Adds support for light nodes 
     """
     OnOffProperty = 'onoff'
+    BrightnessProperty = 'brightness'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -19,21 +20,37 @@ class Light(Node):
     def onoff(self):
         return self._get(Light.OnOffProperty)
 
+    @property
+    def brightness(self):
+        return self._get(Light.BrightnessProperty)
+
+    def supports(self, property):
+        if property == Light.OnOffProperty:
+            return True
+        if property == Light.BrightnessProperty:
+            return self._bound(models.LightLightnessServer)
+
+    async def turn_on(self):
+        if self._bound(models.LightLightnessServer):
+            await self.set_lightness_unack(100)
+        await self.set_onoff_unack(True)
+
+    async def turn_off(self):
+        if self._bound(models.LightLightnessServer):
+            await self.set_lightness_unack(0)
+        await self.set_onoff_unack(False)
+
     async def bind(self, app):
         await super().bind(app)
 
-        # configure node
-        client = app.elements[0][models.ConfigClient]
-        await client.bind_app_key(
-            self.unicast, net_index=0,
-            element_address=self.unicast,
-            app_key_index=app.app_keys[0][0],
-            model=models.GenericOnOffServer)
+        # bind available node models to application
+        if await self.bind_model(models.GenericOnOffServer):
+            await self.get_onoff()
+        if await self.bind_model(models.LightLightnessServer):
+            await self.get_lightness()
 
-        await asyncio.sleep(1.0)
-
-        # get initial state
-        await self.get_onoff()
+        # node is now available
+        self.ready.set()
 
     async def set_onoff_unack(self, onoff):
         self._set(Light.OnOffProperty, onoff)
@@ -42,25 +59,38 @@ class Light(Node):
         await client.set_onoff_unack(
             self.unicast, 
             self._app.app_keys[0][0], 
-            onoff, 
-            send_interval=0.1)
+            onoff)
 
     async def get_onoff(self):
         client = self._app.elements[0][models.GenericOnOffClient]
         state = await client.get_light_status(
             [self.unicast], 
-            self._app.app_keys[0][0], 
-            send_interval=0.1)
+            self._app.app_keys[0][0])
         
         result = state[self.unicast]
-        if not isinstance(result, BaseException):
+        if result is None:
+            logging.warn(f'Received invalid result {state}')
+        elif not isinstance(result, BaseException):
             self._set(Light.OnOffProperty, result['present_onoff'])
 
     async def set_lightness_unack(self, lightness, transition_time=0.5):
+        self._set(Light.OnOffProperty, lightness > 0)
+
         client = self._app.elements[0][models.LightLightnessClient]
-        client.set_lightness_unack(
+        await client.set_lightness_unack(
             self.unicast, 
             self._app.app_keys[0][0], 
             lightness, 
-            transition_time,
-            send_interval=0.1)
+            transition_time)
+
+    async def get_lightness(self):
+        client = self._app.elements[0][models.LightLightnessClient]
+        state = await client.get_lightness(
+            [self.unicast], 
+            self._app.app_keys[0][0])
+
+        result = state[self.unicast]
+        if result is None:
+            logging.warn(f'Received invalid result {state}')
+        elif not isinstance(result, BaseException):
+            self._set(Light.BrightnessProperty, result['present_lightness'])

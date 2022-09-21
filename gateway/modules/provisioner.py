@@ -168,7 +168,7 @@ class ProvisionerModule(Module):
             )
 
     async def _reset(self, uuid, address):
-        logging.info(f'Resetting node {uuid} (address)...')
+        logging.info(f'Resetting node {uuid} ({address})...')
 
         client = self.app.elements[0][models.ConfigClient]
 

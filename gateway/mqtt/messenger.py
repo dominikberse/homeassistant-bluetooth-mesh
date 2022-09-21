@@ -83,8 +83,6 @@ class HassMqttMessenger:
                     return
 
                 tasks.spawn(bridge.listen(node))
-                # send node configuration for MQTT discovery
-                await bridge.config(node)
             
             # global subscription to messages
             await self._client.subscribe("homeassistant/#")

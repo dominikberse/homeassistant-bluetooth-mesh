@@ -40,6 +40,9 @@ class HassMqttBridge:
         # listen for node changes
         node.subscribe(self._property_change)
 
+        # send node configuration for MQTT discovery
+        await self.config(node)
+
         # listen for incoming MQTT messages
         async with self._messenger.filtered_messages(self.component, node) as messages:
             async for message in messages:

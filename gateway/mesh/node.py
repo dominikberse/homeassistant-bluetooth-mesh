@@ -1,3 +1,6 @@
+import asyncio
+
+
 class Node:
     """
     Base class for Bluetooth Mesh nodes
@@ -15,6 +18,8 @@ class Node:
 
         self._subscribers = set()
         self._state = {}
+
+        self.ready = asyncio.Event()
 
     def __str__(self):
         id = self.hass and self.hass.optional('id')
@@ -60,12 +65,17 @@ class Node:
         for subscriber in self._subscribers:
             subscriber(self, property, value)
 
-    def print_info(self):
+    def print_info(self, additional):
         print(
             f'\t{self.uuid}:\n'
             f'\t\ttype: {self.type}\n'
-            f'\t\tunicast: {self.unicast} ({self.count})\n'
+            f'\t\tunicast: {self.unicast} ({self.count})'
         )
+
+        for key, value in additional.items():
+            print(f'\t\t{key}: {value}')
+
+        print()
 
     def yaml(self):
         # UUID is used as key and does not need to be stored
