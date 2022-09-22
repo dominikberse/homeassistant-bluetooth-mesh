@@ -1,4 +1,5 @@
 import yaml
+import os
 
 
 class Store:
@@ -14,13 +15,17 @@ class Store:
             raise Exception('Either delegate or location must be specified')
 
         if self._location:
-            with open(self._location, 'r') as store_file:
-                self._data = yaml.safe_load(store_file)
-        else:
-            self._data = data
+            if os.path.exists(self._location):
+                with open(self._location, 'r') as store_file:
+                    self._data = yaml.safe_load(store_file)
+            else:
+                # create initial base store
+                self._data = {}
 
-        if self._data is None:
-            raise Exception('Store data not available')
+        if self._delegate:
+            if data is None:
+                raise Exception('Substore data not available')
+            self._data = data
 
     def persist(self):
         if self._delegate:

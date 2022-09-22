@@ -146,15 +146,16 @@ class MqttGateway(Application):
         self._store.persist()
 
     async def _import_keys(self):
-        if 'primary_net_key' in self._new_keys:
-            # register primary network key as subnet key
-            await self.management_interface.import_subnet(0, self.primary_net_key[1])
-            logging.info('Imported primary net key as subnet key')
 
         if 'app_key' in self._new_keys:
             # import application key into daemon
             await self.management_interface.import_app_key(*self.app_keys[0])    
             logging.info('Imported app key')
+
+        if 'primary_net_key' in self._new_keys:
+            # register primary network key as subnet key
+            await self.management_interface.import_subnet(0, self.primary_net_key[1])
+            logging.info('Imported primary net key as subnet key')
 
         # update application key for client models
         client = self.elements[0][models.GenericOnOffClient]
@@ -195,6 +196,13 @@ class MqttGateway(Application):
             await stack.enter_async_context(self)
             await self.connect()
 
+            # leave network
+            if args.leave:
+                await self.leave()
+                self._nodes.reset()
+                self._nodes.persist()
+                return
+
             # reload all keays
             if args.reload:
                 self._new_keys.add('primary_net_key')
@@ -209,13 +217,6 @@ class MqttGateway(Application):
                 # try to re-add application key
                 await self.delete_app_key(self.app_keys[0][0], self.app_keys[0][1])
                 await self.add_app_key(*self.app_keys[0])
-
-            # leave network
-            if args.leave:
-                await self.leave()
-                self._nodes.reset()
-                self._nodes.persist()
-                return
 
             # configure all keys
             await self._import_keys()
