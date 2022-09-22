@@ -48,6 +48,7 @@ class MainElement(Element):
         models.HealthClient,
         models.GenericOnOffClient,
         models.LightLightnessClient,
+        models.LightCTLClient,
     ]
 
 
@@ -148,25 +149,29 @@ class MqttGateway(Application):
         if 'primary_net_key' in self._new_keys:
             # register primary network key as subnet key
             await self.management_interface.import_subnet(0, self.primary_net_key[1])
+            logging.info('Imported primary net key as subnet key')
 
         if 'app_key' in self._new_keys:
             # import application key into daemon
             await self.management_interface.import_app_key(*self.app_keys[0])    
+            logging.info('Imported app key')
 
         # update application key for client models
         client = self.elements[0][models.GenericOnOffClient]
         await client.bind(self.app_keys[0][0])
         client = self.elements[0][models.LightLightnessClient]
         await client.bind(self.app_keys[0][0])
+        client = self.elements[0][models.LightCTLClient]
+        await client.bind(self.app_keys[0][0])
 
     async def _try_bind_node(self, node):
         try:
             await node.bind(self)
             logging.info(f'Bound node {node}')
+            node.ready.set()
         except:
             logging.exception(f'Failed to bind node {node}')
         
-
     def scan_result(self, rssi, data, options):
         MESH_MODULES['scan']._scan_result(rssi, data, options)
 
@@ -190,6 +195,11 @@ class MqttGateway(Application):
             await stack.enter_async_context(self)
             await self.connect()
 
+            # reload all keays
+            if args.reload:
+                self._new_keys.add('primary_net_key')
+                self._new_keys.add('app_key')
+
             try:
                 # set overall application key
                 await self.add_app_key(*self.app_keys[0])
@@ -200,11 +210,11 @@ class MqttGateway(Application):
                 await self.delete_app_key(self.app_keys[0][0], self.app_keys[0][1])
                 await self.add_app_key(*self.app_keys[0])
 
-            # reset everything
-            if args.reset:
+            # leave network
+            if args.leave:
                 await self.leave()
-                self._store.reset()
-                self._store.persist()
+                self._nodes.reset()
+                self._nodes.persist()
                 return
 
             # configure all keys
@@ -230,7 +240,8 @@ def main():
     app = MqttGateway(loop)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--reset', action='store_true')
+    parser.add_argument('--leave', action='store_true')
+    parser.add_argument('--reload', action='store_true')
 
     # module specific CLI interfaces
     subparsers = parser.add_subparsers()

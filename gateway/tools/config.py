@@ -52,3 +52,6 @@ class Config:
 
         logging.warning(f'Missing configuration for node {uuid}')
         return Config(config={})
+
+    def items(self):
+        return self._config.items()

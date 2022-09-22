@@ -1,3 +1,4 @@
+from sre_constants import BIGCHARSET
 from mqtt.bridge import HassMqttBridge
 from mesh.nodes.light import Light
 
@@ -14,44 +15,62 @@ class GenericLightBridge(HassMqttBridge):
         return 'light'
 
     async def config(self, node):
-        await node.ready.wait()
-
+        color_modes = set()
         message = {
             '~': self._messenger.node_topic(self.component, node),
             "name": node.hass.optional('name'),
             "unique_id": node.hass.require('id'),
             "object_id": node.hass.require('id'),
-            "cmd_t": "~/set",
-            "stat_t": "~/state",
+            "command_topic": "~/set",
+            "state_topic": "~/state",
             "schema": "json",
-            "brightness": False
         }
 
         if node.supports(Light.BrightnessProperty):
-            message['bri_cmd_t'] = '~/bri_set'
-            message['bri_stat_t'] = '~/bri_state'
-            message['bri_scl'] = 100
+            message['brightness_scale'] = 50
             message['brightness'] = True
+
+        if node.supports(Light.TemperatureProperty):
+            color_modes.add('color_temp')
+            # convert from Kelvin to mireds
+            # TODO: look up max/min values from device
+            # message['min_mireds'] = 1000000 // 7000
+            # message['max_mireds'] = 1000000 // 2000
+            
+        if color_modes:
+            message['color_mode'] = True
+            message['supported_color_modes'] = list(color_modes)
 
         await self._messenger.publish(self.component, node, 'config', message)
 
+    async def _state(self, node, onoff):
+        """
+        Send a generic state message covering the nodes full state
+
+        If the light is on, all properties are set to their retained state.
+        If the light is off, properties are not passed at all.
+        """
+        message = { 'state': 'ON' if onoff else 'OFF' }
+
+        if onoff and node.supports(Light.BrightnessProperty):
+            message['brightness'] = node.retained(Light.BrightnessProperty, 100)
+        if onoff and node.supports(Light.TemperatureProperty):
+            message['color_temp'] = node.retained(Light.TemperatureProperty, 100)
+
+        await self._messenger.publish(self.component, node, 'state', message, retain=True)
+
     async def _mqtt_set(self, node, payload):
-        if payload['state'] == 'ON':
-            await node.turn_on()
-        if payload['state'] == 'OFF':
-            await node.turn_off()
+        if 'color_temp' in payload:
+            await node.set_mireds(payload['color_temp'])
         if 'brightness' in payload:
-            await node.set_lightness_unack(payload['brightness'])
+            await node.set_brightness(payload['brightness'])
+        if payload.get('state') == 'ON':
+            await node.turn_on()
+        if payload.get('state') == 'OFF':
+            await node.turn_off()
 
-    async def _mqtt_bri_set(self, node, payload):
-        print(payload)
+    async def _notify_onoff(self, node, onoff):
+        await self._state(node, onoff)
 
-    async def _node_onoff(self, node, onoff):
-        await self._messenger.publish(self.component, node, 'state', {
-            'state': 'ON' if node.onoff else 'OFF'
-        }, retain=True)
-
-    async def _node_brightness(self, node, brightness):
-        await self._messenger.publish(self.component, node, 'state', {
-            'brightness': node.brightness
-        }, retain=True)
+    async def _notify_brightness(self, node, brightness):
+        await self._state(node, brightness > 0)

@@ -63,9 +63,12 @@ class HassMqttMessenger:
         """
         Send a state update for a specific nde
         """
+        if isinstance(message, dict):
+            message = json.dumps(message)
+
         await self._client.publish(
             f'{self.node_topic(component, node)}/{topic}', 
-            json.dumps(message).encode(), **kwargs)
+            str(message).encode(), **kwargs)
 
     async def run(self, app):
         async with AsyncExitStack() as stack:

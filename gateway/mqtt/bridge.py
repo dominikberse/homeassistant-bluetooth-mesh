@@ -24,7 +24,7 @@ class HassMqttBridge:
     def _property_change(self, node, property, value):
         try:
             # get handler from property name
-            handler = getattr(self, f'_node_{property}')
+            handler = getattr(self, f'_notify_{property}')
         except:
             logging.warning(f'Missing handler for property {property}')
             return
@@ -37,11 +37,12 @@ class HassMqttBridge:
         Listen for incoming messages and node changes
         """
 
-        # listen for node changes
-        node.subscribe(self._property_change)
-
         # send node configuration for MQTT discovery
+        await node.ready.wait()
         await self.config(node)
+
+        # listen for node changes (this will also push the initial state)
+        node.subscribe(self._property_change, resend=True)
 
         # listen for incoming MQTT messages
         async with self._messenger.filtered_messages(self.component, node) as messages:

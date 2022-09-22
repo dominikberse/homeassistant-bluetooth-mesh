@@ -59,3 +59,6 @@ class NodeManager:
         
     def all(self):
         return self._nodes.values()
+
+    def reset(self):
+        self._nodes.clear()

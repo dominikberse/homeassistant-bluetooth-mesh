@@ -20,7 +20,7 @@ class ProvisionerModule(Module):
 
     def initialize(self, app, store, config):
         super().initialize(app, store, config)
-        
+
         # ensure new devices are provisioned correctly
         self._base_address = self.store.get('base_address', 4)
         self.store.persist()
@@ -34,9 +34,23 @@ class ProvisionerModule(Module):
             self.print_node_list()
             return
 
+        # configure all provisioned
         if args.task == 'config' and args.uuid is None:
             for node in self.app.nodes.all():
-                await self._configure(node.uuid, node.unicast)
+                if not node.configured:
+                    await self._configure(node)
+
+            self.print_node_list()
+            return
+
+        # provision nodes from configuration
+        if args.task == 'add' and args.uuid is None:
+            for _, info in self.app._config.require('mesh').items():
+                uuid = UUID(info['uuid'])
+                if not self.app.nodes.has(uuid):
+                    await self._provision(uuid)
+            
+            self.print_node_list()
             return
 
         try:
@@ -56,11 +70,11 @@ class ProvisionerModule(Module):
             return
         
         if args.task == 'config':
-            await self._configure(uuid, node.unicast)
+            await self._configure(node)
             return
 
         if args.task == 'reset':
-            await self._reset(uuid, node.unicast)
+            await self._reset(node)
             self.print_node_list()
             return
 
@@ -136,45 +150,62 @@ class ProvisionerModule(Module):
         logging.info(f'Provisioning node {uuid}...')
 
         # provision new node
+        self.provisioning_done.clear()
         await self.app.management_interface.add_node(uuid)
         await self.provisioning_done.wait()
 
-    async def _configure(self, uuid, address):
-        logging.info(f'Configuring node {uuid}...')
+    async def _configure(self, node):
+        logging.info(f'Configuring node {node}...')
 
         client = self.app.elements[0][models.ConfigClient]
 
         # add application key
         try:
             status = await client.add_app_key(
-                address, net_index=0,
+                node.unicast, net_index=0,
                 app_key_index=self.app.app_keys[0][0],
                 net_key_index=self.app.app_keys[0][1],
                 app_key=self.app.app_keys[0][2]
             )
         except:
-            logging.exception(f'Failed to add app key for node {uuid}')
+            logging.exception(f'Failed to add app key for node {node}')
 
             status = await client.delete_app_key(
-                address, net_index=0,
+                node.unicast, net_index=0,
                 app_key_index=self.app.app_keys[0][0],
                 net_key_index=self.app.app_keys[0][1]
             )
             status = await client.add_app_key(
-                address, net_index=0,
+                node.unicast, net_index=0,
                 app_key_index=self.app.app_keys[0][0],
                 net_key_index=self.app.app_keys[0][1],
                 app_key=self.app.app_keys[0][2]
             )
 
-    async def _reset(self, uuid, address):
-        logging.info(f'Resetting node {uuid} ({address})...')
+        if node.hass:
+
+            # update friend state
+            if node.hass.optional('relay', False):
+                status = await client.set_relay(
+                    node.unicast, net_index=0,
+                    relay=True,
+                    retransmit_count=2,
+                )
+
+            # try to set node type from Home Assistant
+            node.type = node.hass.optional('type', node.type)
+        
+        node.configured = True
+        self.app.nodes.persist()
+
+    async def _reset(self, node):
+        logging.info(f'Resetting node {node}...')
 
         client = self.app.elements[0][models.ConfigClient]
 
         await client.node_reset(
-            address, net_index=0
+            node.unicast, net_index=0
         )
 
-        self.app.nodes.delete(str(uuid))
+        self.app.nodes.delete(str(node.uuid))
         self.app.nodes.persist()
