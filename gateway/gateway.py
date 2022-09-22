@@ -136,7 +136,7 @@ class MqttGateway(Application):
         self._nodes = NodeManager(nodes, NODE_TYPES)
         for node in self._nodes.all():
             # append Home Assistant specific configuration
-            node.hass = self._config.node_config(node.uuid)
+            node.config = self._config.node_config(node.uuid)
 
         # initialize MQTT messenger
         self._messenger = HassMqttMessenger(self._config, self._nodes)
