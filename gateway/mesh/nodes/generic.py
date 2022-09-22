@@ -38,7 +38,7 @@ class Generic(Node):
         Use the helper functions to retrieve information.
         """
         client = self._app.elements[0][models.ConfigClient]
-        data = await client.get_composition_data([self.unicast], net_index=0)
+        data = await client.get_composition_data([self.unicast], net_index=0, timeout=30)
         # TODO: multi page composition data support
         page_zero = data.get(self.unicast, {}).get('zero')
         self._composition = Composition(page_zero)
@@ -46,12 +46,9 @@ class Generic(Node):
     async def bind(self, app):
         await super().bind(app)
 
-        # short delay to avoid irritations
-        await asyncio.sleep(1.0)
-
         # update the composition data
         await self.fetch_composition()
-        
+
         logging.debug(f'Node composition:\n{self._composition}')
 
     async def bind_model(self, model):
