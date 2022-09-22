@@ -85,7 +85,7 @@ class HassMqttMessenger:
                     logging.warning(f'No MQTT bridge for node {node}')
                     return
 
-                tasks.spawn(bridge.listen(node))
+                tasks.spawn(bridge.listen(node), f'bridge {node}')
             
             # global subscription to messages
             await self._client.subscribe("homeassistant/#")

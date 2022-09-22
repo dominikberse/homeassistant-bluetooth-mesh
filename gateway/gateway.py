@@ -228,10 +228,10 @@ class MqttGateway(Application):
 
             # initialize all nodes
             for node in self._nodes.all():
-                tasks.spawn(self._try_bind_node(node))
+                tasks.spawn(self._try_bind_node(node), f'bind {node}')
 
             # start MQTT task
-            tasks.spawn(self._messenger.run(self))
+            tasks.spawn(self._messenger.run(self), 'run messenger')
 
             # wait for all tasks
             await tasks.gather()

@@ -29,16 +29,18 @@ class Tasks:
             except asyncio.CancelledError:
                 pass
 
-    async def _runner(self, task):
-        logging.info('Spawning task...')
+    async def _runner(self, task, name):
+        if name:
+            logging.debug(f'Spawning task to {name}...')
         try:
             await task
         except:
             logging.exception('Task failed')
-        logging.info('Task completed')
+        if name:
+            logging.debug(f'{name} completed')
 
-    def spawn(self, task):
-        self._tasks.add(asyncio.create_task(self._runner(task)))
+    def spawn(self, task, name=None):
+        self._tasks.add(asyncio.create_task(self._runner(task, name)))
 
     async def gather(self):
         logging.info(f'Awaiting {len(self._tasks)} tasks')
