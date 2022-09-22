@@ -18,9 +18,9 @@ class GenericLightBridge(HassMqttBridge):
         color_modes = set()
         message = {
             '~': self._messenger.node_topic(self.component, node),
-            "name": node.hass.optional('name'),
-            "unique_id": node.hass.require('id'),
-            "object_id": node.hass.require('id'),
+            "name": node.config.optional('name'),
+            "unique_id": node.config.require('id'),
+            "object_id": node.config.require('id'),
             "command_topic": "~/set",
             "state_topic": "~/state",
             "schema": "json",

@@ -53,6 +53,15 @@ class ProvisionerModule(Module):
             self.print_node_list()
             return
 
+        # reset nodes from configuration
+        if args.task == 'reset' and args.uuid is None:
+            for node in list(self.app.nodes.all()):
+                if node.config.optional('id', None) is None:
+                    await self._reset(node)
+            
+            self.print_node_list()
+            return
+
         try:
             uuid = UUID(args.uuid)
         except:
@@ -182,18 +191,16 @@ class ProvisionerModule(Module):
                 app_key=self.app.app_keys[0][2]
             )
 
-        if node.hass:
+        # update friend state
+        if node.config.optional('relay', False):
+            status = await client.set_relay(
+                node.unicast, net_index=0,
+                relay=True,
+                retransmit_count=2,
+            )
 
-            # update friend state
-            if node.hass.optional('relay', False):
-                status = await client.set_relay(
-                    node.unicast, net_index=0,
-                    relay=True,
-                    retransmit_count=2,
-                )
-
-            # try to set node type from Home Assistant
-            node.type = node.hass.optional('type', node.type)
+        # try to set node type from Home Assistant
+        node.type = node.config.optional('type', node.type)
         
         node.configured = True
         self.app.nodes.persist()

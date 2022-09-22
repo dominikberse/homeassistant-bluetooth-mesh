@@ -48,7 +48,7 @@ class HassMqttMessenger:
         Return base topic for a specific node
         """
         if isinstance(node, Node):
-            node = node.hass.require('id')
+            node = node.config.require('id')
 
         return f'homeassistant/{component}/{self._topic}/{node}'
 

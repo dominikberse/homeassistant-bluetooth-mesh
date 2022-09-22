@@ -1,5 +1,7 @@
 import asyncio
 
+from tools import Config
+
 
 class Node:
     """
@@ -15,7 +17,7 @@ class Node:
         self.unicast = unicast
         self.count = count
         self.configured = configured
-        self.hass = None
+        self.config = Config(config={})
 
         # event system for property changes
         self._retained = {}
@@ -24,7 +26,7 @@ class Node:
         self.ready = asyncio.Event()
 
     def __str__(self):
-        id = self.hass and self.hass.optional('id')
+        id = self.config.optional('id')
         
         if id:
             return f'{id} ({self.uuid}, {self.unicast:04})' 
@@ -71,9 +73,8 @@ class Node:
             f'\t\tconfigured: {self.configured}',
         )
 
-        if self.hass:
-            for key, value in self.hass.items():
-                print(f'\t\t{key}: {value}')
+        for key, value in self.config.items():
+            print(f'\t\t{key}: {value}')
                 
         if additional:
             for key, value in additional.items():

@@ -44,7 +44,7 @@ class Config:
         """
         Get config for given node
         """
-        mesh = self.require('mesh')
+        mesh = self.optional('mesh', None) or {}
 
         for id, info in mesh.items():
             if info.get('uuid') == str(uuid):
