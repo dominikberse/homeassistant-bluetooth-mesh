@@ -13,26 +13,30 @@ RUN apt-get -y update && apt-get -y upgrade && apt-get -y install \
     libical-dev \ 
     libreadline-dev
 
-WORKDIR /opt/hass-ble-mesh
+# install BlueZ with mesh support
+WORKDIR /opt/build
 COPY ./scripts/install-ell.sh .
 RUN sh ./install-ell.sh
 
-WORKDIR /opt/hass-ble-mesh
+WORKDIR /opt/build
 COPY ./scripts/install-json-c.sh .
 RUN sh ./install-json-c.sh
 
-RUN apt-get -y install 
-
-WORKDIR /opt/hass-ble-mesh
+WORKDIR /opt/build
 COPY ./scripts/install-bluez.sh .
 RUN sh ./install-bluez.sh
 
+# install bridge
 WORKDIR /opt/hass-ble-mesh
-RUN git clone https://github.com/dominikberse/homeassistant-bluetooth-mesh.git
-WORKDIR /opt/hass-ble-mesh/homeassistant-bluetooth-mesh
+RUN git clone https://github.com/dominikberse/homeassistant-bluetooth-mesh.git .
+RUN git checkout feature/docker
 RUN pip3 install -r requirements.txt
-COPY config.yaml .
 
-WORKDIR /opt/hass-ble-mesh
-COPY scripts/entrypoint.sh .
+# mount config
+WORKDIR /config
+VOLUME /config
+
+# run bluetooth service and bridge
+WORKDIR /opt/hass-ble-mesh/gateway
+COPY ./scripts/entrypoint.sh .
 ENTRYPOINT [ "/bin/bash", "entrypoint.sh" ]
