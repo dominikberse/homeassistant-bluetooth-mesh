@@ -25,51 +25,15 @@ Currently the following bridges are implemented:
 - Check relay setup
 - (done) Dockerize application
 - Provide as HACS integration
-- Extend READMEOS
+- Extend README
 
 ## (Hopefully) easy setup
 
-There is a docker container available, that will setup BlueZ with mesh support and run the gateway. However, due to the use of the bluetooth hardware, I can not guarantee that it is running everywhere. I tested it on a Raspberry Pi 4 with Raspberry Pi OS 2022-09-22 (bullseye).
+The repository provides a docker container, that will setup BlueZ with mesh support and run the gateway. However, due to the use of the bluetooth hardware, I can not guarantee that it is working everywhere. For now I tested it on a Raspberry Pi 4 with Raspberry Pi OS 2022-09-22 (bullseye). If you are able to run it on other hardware just notify me as I will try to keep track of compatible setups.
 
-Clone the repository and create the configuration file under `docker/config/config.yaml` like outlined below.
+- If you have a blank Raspberry Pi you need to install docker and git first.
 
-**It is very important to disable bluetooth on the host system!**
-
-```
-sudo systemctl disable bluetooth
-```
-
-Start the container using docker compose.
-
-```
-docker compose up -d
-```
-
-Note that the container currently runs `/bin/bash` in the foreground, because the gateway exits if no nodes are provisioned. This will change in the future (I plan on implementing a simple web interface for provisioning). Also, there might be an error message on the very first startup. It should be gone on the second try.
-
-### Using the command line within docker
-
-Since the web interface is not yet available, you need to use the command line to provision devices (as outlined below). You can access the command line using:
-
-```
-docker compose exec app /bin/bash
-```
-
-It might be neccessary to stop the running gateway process:
-
-```
-kill
-```
-
-## Manual setup
-
-### Prequisites
-
-Setting up the application can be tricky. The easy part is to install the Python requirements using `pip3 install -r requirements.txt`, the hard part is the setup BlueZ with `meshctl` support. Once installed, you should be able to start the `bluetooth-mesh` service. It might be neccessary to stop the default `bluetooth` service first and ensure that your bluetooth device (probably `hci0`) is not locked.
-
-### Configuration
-
-Create a `config.yaml` file inside the main folder, which looks like this:
+- Clone the repository and create a `config.yaml` file under `docker/config/`:
 
 ```
 mqtt:
@@ -84,27 +48,73 @@ mesh:
   ...
 ```
 
-With that available, you should be able to run the application from the `gateway` folder (best to try `python3 gateway.py scan` first).
+- **It is very important to disable bluetooth on the host system!** This is neccessary, because the bluetooth-mesh service needs exclusive access to the bluetooth device.
+
+```
+sudo systemctl stop bluetooth
+sudo systemctl disable bluetooth
+```
+
+- Start the container using docker compose.
+
+```
+docker compose up -d
+```
+
+Note that the container currently runs `/bin/bash` in the foreground, because the gateway exits if no nodes are provisioned. This will change in the future (I plan on implementing a simple web interface for provisioning). Also, there might be an error message on the very first startup. It should be gone on the second try.
+
+### Using the command line within docker
+
+Since the web interface is not yet available, you need to use the command line to scan and provision devices. With the container running, you can access the command line inside the docker container from the host system using:
+
+```
+docker compose exec app /bin/bash
+```
+
+From there, it might be neccessary to stop the running python process.
+
+```
+ps -ef | grep gateway
+kill <PID>
+```
+
+Since I placed the configuration files in `/config`, so you need to add `--basedir /config` to every command. So for example the scan command would look like this:
+
+```
+python3 gateway.py --basedir /config scan
+```
+
+Once you are done, switch back to the host system (simply `exit`) and restart the container for the changes to take effect.
+
+```
+docker compose restart
+```
+
+## Manual setup
+
+If you do not want to use the docker image or for some reason it is not compatible, you can try to setup everything manually. However, this can be a little tricky.
+
+After cloning the repository, the easy part is to install the Python requirements using `pip3 install -r requirements.txt` (probably inside a virtual environment). The hard part is the get the `bluetooth-mesh` service running. This usually requires to build BlueZ from scratch and replace the available BlueZ installation. Have a look at the docker installation scripts, they should be a good starting point on what you need to do.
+
+Once you get it running, it might be neccessary to stop the default `bluetooth` service first and ensure that your bluetooth device (probably `hci0`) is not locked. Place the configuration file (see docker installation) inside the main folder and name it `config.yaml`.
+
+With that available, you should be able to run the application from the `gateway` folder (try `python3 gateway.py scan` first).
 
 ### Running the gateway
 
-Calling `python3 gateway.py` without further arguments will start the MQTT gateway and keep it alive. All provisioned devices should be discovered by Home Assistant and become available. If not, check the Home Assistant MQTT integration.
+Calling `python3 gateway.py` without further arguments will start the MQTT gateway and keep it alive. All provisioned devices should be discovered by Home Assistant and become available. If not, check the Home Assistant MQTT integration. If no devices are provisioned, the application will exit.
 
 ## Provisioning a device
 
 **Make sure you know how to reset your device in case something goes wrong here.** Also it might be neccessary to edit the `store.yaml` by hand in case something fails.
 
-The command line interface is still a little messy, but the workflow to add a device is as follows:
+_Remember that you need to add the `--basedir /config` switch after `gateway.py` if you are using the command line within docker._
 
-- `python3 gateway.py scan`: Scan for unprovisioned devices
-- `python3 gateway.py prov add <uuid>`: Provision a device _or_
-- `python3 gateway.py prov add`: Provision all device from config file
-- `python3 gateway.py prov config <uuid>`: Configure device (set application keys) to work with this gateway
+1. Scan for unprovisioned devices with `python3 gateway.py scan`.
+1. Create an entry for the device(s) you want to add in the `config.yaml`.
+1. Provision the device with `python3 gateway.py prov add <uuid>` _or_ `python3 gateway.py prov add` to provision all devices.
+1. Configure the device with `python3 gateway.py prov config <uuid>` _or_ `python3 gateway.py prov config` to configure all devices.
+   _Do not skip this step, otherwise the device is not part of the application network and it will not respond properly._
 
-Now:
-
-- `python3 gateway.py list`: Should include the newly provisioned devices
-
-To remove a device use:
-
-- `python3 gateway.py prov reset <uuid>`
+- To list all provisioned devices use `python3 gateway.py list`.
+- You can remove and reset a device with `python3 gateway.py prov reset <uuid>`.
