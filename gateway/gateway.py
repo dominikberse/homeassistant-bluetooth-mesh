@@ -3,6 +3,7 @@ import logging
 import secrets
 import argparse
 import uuid
+import os
 
 from contextlib import AsyncExitStack, suppress
 
@@ -63,11 +64,11 @@ class MqttGateway(Application):
     CRPL = 32768
     PATH = "/org/hass/mesh"
 
-    def __init__(self, loop):
+    def __init__(self, loop, basedir):
         super().__init__(loop)
 
-        self._store = Store(location='../store.yaml')
-        self._config = Config('../config.yaml')
+        self._store = Store(location=os.path.join(basedir, 'store.yaml'))
+        self._config = Config(os.path.join(basedir, 'config.yaml'))
         self._nodes = {}
         
         self._messenger = None
@@ -241,6 +242,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--leave', action='store_true')
     parser.add_argument('--reload', action='store_true')
+    parser.add_argument('--basedir', default='..')
     
     # module specific CLI interfaces
     subparsers = parser.add_subparsers()
@@ -252,7 +254,7 @@ def main():
     args = parser.parse_args()
 
     loop = asyncio.get_event_loop()
-    app = MqttGateway(loop)
+    app = MqttGateway(loop, args.basedir)
 
     with suppress(KeyboardInterrupt):
         loop.run_until_complete(app.run(args))
