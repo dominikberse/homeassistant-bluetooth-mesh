@@ -19,7 +19,7 @@ class HassMqttMessenger:
     """
     Provides home assistant specific MQTT functionality
 
-    Manages a set of bridges for specific device types and 
+    Manages a set of bridges for specific device types and
     manages tasks to receive and handle incoming messages.
     """
     def __init__(self, config, nodes):
@@ -28,7 +28,11 @@ class HassMqttMessenger:
         self._bridges = {}
         self._paths = {}
 
-        self._client = Client(self._config.require('mqtt.broker'))
+        self._client = Client(
+            self._config.require('mqtt.broker'),
+            username=self._config.optional("mqtt.username"),
+            password=self._config.optional("mqtt.password"),
+        )
         self._topic = config.optional('mqtt.topic', 'mqtt_mesh')
 
         # initialize bridges
@@ -67,7 +71,7 @@ class HassMqttMessenger:
             message = json.dumps(message)
 
         await self._client.publish(
-            f'{self.node_topic(component, node)}/{topic}', 
+            f'{self.node_topic(component, node)}/{topic}',
             str(message).encode(), **kwargs)
 
     async def run(self, app):
@@ -86,7 +90,7 @@ class HassMqttMessenger:
                     return
 
                 tasks.spawn(bridge.listen(node), f'bridge {node}')
-            
+
             # global subscription to messages
             await self._client.subscribe("homeassistant/#")
 
