@@ -11,25 +11,36 @@ class NodeManager:
     Therefore no inheritance from tools.Store is implemented.
     """
     
-    def __init__(self, store, types):
+    def __init__(self, store, config, types):
         self._store = store
         self._types = types
         self._nodes = {}
 
         # create node instances of specific types
         for uuid, info in self._store.items():
-            self._nodes[uuid] = self._make_node(UUID(uuid), info)
+            self._nodes[uuid] = self._make_node(UUID(uuid), info, config.node_config(uuid))
 
     def __len__(self):
         return len(self._nodes)
 
-    def _make_node(self, uuid, info):
+    def _make_node(self, uuid, info, node_config):
         typename = info.get('type')
+
+        # check if the user changed the node type in the configuration
+        user_typename = node_config.optional('type', typename)
+        if user_typename != typename:
+            logging.warning(f'Node type changed for {uuid} from "{typename}" to "{user_typename}"')
+        
+            typename = user_typename
+            info['type'] = typename
+
         if typename is None or typename not in self._types:
             raise Exception(f'Invalid node type "{typename}" for {uuid}')
 
         # create node instance of specific type
-        return self._types[typename](uuid, **info)
+        node = self._types[typename](uuid, **info)
+        node.config = node_config
+        return node
 
     def get(self, uuid):
         return self._nodes.get(str(uuid))
