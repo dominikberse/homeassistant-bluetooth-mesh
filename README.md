@@ -55,7 +55,7 @@ sudo systemctl stop bluetooth
 sudo systemctl disable bluetooth
 ```
 
-- Start the container using docker compose.
+- Start the container using docker compose and grab a coffee. This took one and a half hours for me to complete on a Raspberry Pi 4. It might seem stuck when compiling numpy, but this actually takes half an hour.
 
 ```
 docker compose up -d
