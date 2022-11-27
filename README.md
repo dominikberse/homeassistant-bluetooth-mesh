@@ -78,7 +78,7 @@ ps -ef | grep gateway
 kill <PID>
 ```
 
-Since I placed the configuration files in `/config`, so you need to add `--basedir /config` to every command. So for example the scan command would look like this:
+I placed the configuration files in `/config`, so you need to add `--basedir /config` to every command. So for example the scan command would look like this:
 
 ```
 python3 gateway.py --basedir /config scan
@@ -112,9 +112,9 @@ _Remember that you need to add the `--basedir /config` switch after `gateway.py`
 
 1. Scan for unprovisioned devices with `python3 gateway.py scan`.
 1. Create an entry for the device(s) you want to add in the `config.yaml`.
-1. Provision the device with `python3 gateway.py prov add <uuid>` _or_ `python3 gateway.py prov add` to provision all devices.
-1. Configure the device with `python3 gateway.py prov config <uuid>` _or_ `python3 gateway.py prov config` to configure all devices.
+1. Provision the device with `python3 gateway.py prov --uuid <uuid> add`.
+1. Configure the device with `python3 gateway.py prov --uuid <uuid> config`.
    _Do not skip this step, otherwise the device is not part of the application network and it will not respond properly._
 
 - To list all provisioned devices use `python3 gateway.py list`.
-- You can remove and reset a device with `python3 gateway.py prov reset <uuid>`.
+- You can remove and reset a device with `python3 gateway.py prov --uuid <uuid> reset`.
