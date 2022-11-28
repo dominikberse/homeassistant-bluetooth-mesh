@@ -116,5 +116,5 @@ _Remember that you need to add the `--basedir /config` switch after `gateway.py`
 1. Configure the device with `python3 gateway.py prov --uuid <uuid> config`.
    _Do not skip this step, otherwise the device is not part of the application network and it will not respond properly._
 
-- To list all provisioned devices use `python3 gateway.py list`.
+- To list all provisioned devices use `python3 gateway.py prov list`.
 - You can remove and reset a device with `python3 gateway.py prov --uuid <uuid> reset`.
