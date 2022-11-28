@@ -38,6 +38,8 @@ The repository provides a docker container, that will setup BlueZ with mesh supp
 ```
 mqtt:
   broker: <mqtt_broker>
+  [username: <username>]
+  [password: <password>]
   node_id: mqtt_mesh
 mesh:
   <hass_device_id>:
