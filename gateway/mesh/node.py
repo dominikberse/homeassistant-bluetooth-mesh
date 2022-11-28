@@ -11,13 +11,13 @@ class Node:
     event interface for other application components.
     """
 
-    def __init__(self, uuid, type, unicast, count, configured=False):
+    def __init__(self, uuid, type, unicast, count, configured=False, config=None):
         self.uuid = uuid
         self.type = type
         self.unicast = unicast
         self.count = count
         self.configured = configured
-        self.config = Config(config={})
+        self.config = config or Config(config={})
 
         # event system for property changes
         self._retained = {}

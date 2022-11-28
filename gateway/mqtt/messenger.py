@@ -82,7 +82,7 @@ class HassMqttMessenger:
                 bridge = self._bridges.get(node.type)
 
                 if bridge is None:
-                    logging.warning(f'No MQTT bridge for node {node}')
+                    logging.warning(f'No MQTT bridge for node {node} ({node.type})')
                     return
 
                 tasks.spawn(bridge.listen(node), f'bridge {node}')

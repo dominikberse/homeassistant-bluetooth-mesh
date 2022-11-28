@@ -1,0 +1,10 @@
+version: "3.9"
+services:
+  app:
+    build: .
+    volumes:
+      - ./config:/config/
+    restart: "always"
+    network_mode: "host"
+    privileged: true
+    tty: true

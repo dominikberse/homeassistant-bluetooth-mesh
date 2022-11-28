@@ -3,6 +3,7 @@ import logging
 import secrets
 import argparse
 import uuid
+import os
 
 from contextlib import AsyncExitStack, suppress
 
@@ -22,7 +23,7 @@ from modules.manager import ManagerModule
 from mesh.nodes.light import Light
 
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 
 
 MESH_MODULES = {
@@ -63,11 +64,11 @@ class MqttGateway(Application):
     CRPL = 32768
     PATH = "/org/hass/mesh"
 
-    def __init__(self, loop):
+    def __init__(self, loop, basedir):
         super().__init__(loop)
 
-        self._store = Store(location='../store.yaml')
-        self._config = Config('../config.yaml')
+        self._store = Store(location=os.path.join(basedir, 'store.yaml'))
+        self._config = Config(os.path.join(basedir, 'config.yaml'))
         self._nodes = {}
         
         self._messenger = None
@@ -133,10 +134,7 @@ class MqttGateway(Application):
             ]
 
         # initialize node manager
-        self._nodes = NodeManager(nodes, NODE_TYPES)
-        for node in self._nodes.all():
-            # append Home Assistant specific configuration
-            node.config = self._config.node_config(node.uuid)
+        self._nodes = NodeManager(nodes, self._config, NODE_TYPES)
 
         # initialize MQTT messenger
         self._messenger = HassMqttMessenger(self._config, self._nodes)
@@ -146,16 +144,17 @@ class MqttGateway(Application):
         self._store.persist()
 
     async def _import_keys(self):
-
-        if 'app_key' in self._new_keys:
-            # import application key into daemon
-            await self.management_interface.import_app_key(*self.app_keys[0])    
-            logging.info('Imported app key')
+        logging.info('Importing keys...')
 
         if 'primary_net_key' in self._new_keys:
             # register primary network key as subnet key
             await self.management_interface.import_subnet(0, self.primary_net_key[1])
             logging.info('Imported primary net key as subnet key')
+
+        if 'app_key' in self._new_keys:
+            # import application key into daemon
+            await self.management_interface.import_app_key(*self.app_keys[0])    
+            logging.info('Imported app key')
 
         # update application key for client models
         client = self.elements[0][models.GenericOnOffClient]
@@ -203,11 +202,6 @@ class MqttGateway(Application):
                 self._nodes.persist()
                 return
 
-            # reload all keays
-            if args.reload:
-                self._new_keys.add('primary_net_key')
-                self._new_keys.add('app_key')
-
             try:
                 # set overall application key
                 await self.add_app_key(*self.app_keys[0])
@@ -217,6 +211,11 @@ class MqttGateway(Application):
                 # try to re-add application key
                 await self.delete_app_key(self.app_keys[0][0], self.app_keys[0][1])
                 await self.add_app_key(*self.app_keys[0])
+
+            # force reloading keys
+            if args.reload:
+                self._new_keys.add('primary_net_key')
+                self._new_keys.add('app_key')
 
             # configure all keys
             await self._import_keys()
@@ -237,13 +236,11 @@ class MqttGateway(Application):
             await tasks.gather()
 
 def main():
-    loop = asyncio.get_event_loop()
-    app = MqttGateway(loop)
-
     parser = argparse.ArgumentParser()
     parser.add_argument('--leave', action='store_true')
     parser.add_argument('--reload', action='store_true')
-
+    parser.add_argument('--basedir', default='..')
+    
     # module specific CLI interfaces
     subparsers = parser.add_subparsers()
     for name, module in MESH_MODULES.items():
@@ -252,6 +249,9 @@ def main():
         module.setup_cli(subparser)
 
     args = parser.parse_args()
+
+    loop = asyncio.get_event_loop()
+    app = MqttGateway(loop, args.basedir)
 
     with suppress(KeyboardInterrupt):
         loop.run_until_complete(app.run(args))
