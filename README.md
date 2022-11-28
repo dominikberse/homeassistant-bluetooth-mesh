@@ -1,4 +1,4 @@
-# homeassistant-bluetooth-mesh
+# Bluetooth Mesh for Home Assistant
 
 This project aims to integrate Bluetooth Mesh devices into Home Assistant directly.
 
