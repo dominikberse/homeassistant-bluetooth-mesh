@@ -10,7 +10,7 @@ RUN apt-get -y update && apt-get -y upgrade && apt-get -y install \
     libtool \
     libdbus-1-dev \
     libudev-dev \
-    libical-dev \ 
+    libical-dev \
     libreadline-dev
 
 # install BlueZ with mesh support
@@ -28,8 +28,8 @@ RUN sh ./install-bluez.sh
 
 # install bridge
 WORKDIR /opt/hass-ble-mesh
-RUN git clone https://github.com/dominikberse/homeassistant-bluetooth-mesh.git .
-RUN git checkout feature/docker
+RUN git clone https://github.com/minims/homeassistant-bluetooth-mesh.git .
+RUN git checkout improvement
 RUN pip3 install -r requirements.txt
 
 # mount config
