@@ -1,0 +1,11 @@
+mqtt:
+  broker: <mqtt_broker>
+  # username: <username>
+  # password: <password>
+  node_id: mqtt_mesh
+mesh:
+  <hass_device_id>:
+    uuid: <bluetooth_mesh_device_uuid>
+    name: <hass_device_name>
+    type: light               # thats it for now
+    # [relay: <true|false>]   # whether this node should act as a bluetooth relay
