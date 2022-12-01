@@ -1,9 +1,9 @@
-import asyncio
+"""Node Light Module"""
 import logging
 
-from .generic import Generic
-
 from bluetooth_mesh import models
+
+from .generic import Generic
 
 
 class Light(Generic):
@@ -82,7 +82,7 @@ class Light(Generic):
 
         result = state[self.unicast]
         if result is None:
-            logging.warn(f"Received invalid result {state}")
+            logging.warning(f"Received invalid result {state}")
         elif not isinstance(result, BaseException):
             self.notify(Light.OnOffProperty, result["present_onoff"])
 
@@ -98,7 +98,7 @@ class Light(Generic):
 
         result = state[self.unicast]
         if result is None:
-            logging.warn(f"Received invalid result {state}")
+            logging.warning(f"Received invalid result {state}")
         elif not isinstance(result, BaseException):
             self.notify(Light.BrightnessProperty, result["present_lightness"])
 
@@ -121,6 +121,6 @@ class Light(Generic):
 
         result = state[self.unicast]
         if result is None:
-            logging.warn(f"Received invalid result {state}")
+            logging.warning(f"Received invalid result {state}")
         elif not isinstance(result, BaseException):
             print(result)

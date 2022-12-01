@@ -45,8 +45,9 @@ mesh:
   <hass_device_id>:
     uuid: <bluetooth_mesh_device_uuid>
     name: <hass_device_name>
-    type: light             # thats it for now
-    [relay: <true|false>]   # whether this node should act as relay
+    type: light                 # thats it for now
+    [ brightness_factor: 1000]  # brightness value multiplier (default: 1)
+    [relay: <true|false>]       # whether this node should act as relay
   ...
 ```
 

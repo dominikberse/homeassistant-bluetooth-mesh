@@ -1,4 +1,4 @@
-from sre_constants import BIGCHARSET
+"""MQTT Light Module"""
 from mqtt.bridge import HassMqttBridge
 from mesh.nodes.light import Light
 
@@ -9,6 +9,7 @@ class GenericLightBridge(HassMqttBridge):
     """
 
     def __init__(self, *args, **kwargs):
+        self.brightness_factor = 1
         super().__init__(*args, **kwargs)
 
     @property
@@ -42,6 +43,10 @@ class GenericLightBridge(HassMqttBridge):
             message["color_mode"] = True
             message["supported_color_modes"] = list(color_modes)
 
+        brightness_factor = node.config.optional("brightness_factor")
+        if brightness_factor and brightness_factor > 1:
+            self.brightness_factor = brightness_factor
+
         await self._messenger.publish(self.component, node, "config", message)
 
     async def _state(self, node, onoff):
@@ -54,7 +59,8 @@ class GenericLightBridge(HassMqttBridge):
         message = {"state": "ON" if onoff else "OFF"}
 
         if onoff and node.supports(Light.BrightnessProperty):
-            message["brightness"] = node.retained(Light.BrightnessProperty, 100)
+            message["brightness"] = int(node.retained(Light.BrightnessProperty, 100)) / self.brightness_factor
+
         if onoff and node.supports(Light.TemperatureProperty):
             message["color_temp"] = node.retained(Light.TemperatureProperty, 100)
 
@@ -64,7 +70,7 @@ class GenericLightBridge(HassMqttBridge):
         if "color_temp" in payload:
             await node.set_mireds(payload["color_temp"])
         if "brightness" in payload:
-            await node.set_brightness(payload["brightness"])
+            await node.set_brightness(int(int(payload["brightness"]) * self.brightness_factor))
         if payload.get("state") == "ON":
             await node.turn_on()
         if payload.get("state") == "OFF":

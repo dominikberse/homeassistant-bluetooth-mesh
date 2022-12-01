@@ -1,27 +1,24 @@
+"""Gateway"""
+import argparse
 import asyncio
 import logging
-import secrets
-import argparse
-import uuid
 import os
-
+import secrets
 from contextlib import AsyncExitStack, suppress
 
+from bluetooth_mesh import models
 from bluetooth_mesh.application import Application, Element
 from bluetooth_mesh.crypto import ApplicationKey, DeviceKey, NetworkKey
 from bluetooth_mesh.messages.config import GATTNamespaceDescriptor
-from bluetooth_mesh import models
-
-from tools import Config, Store, Tasks
 from mesh import Node, NodeManager
-from mqtt import HassMqttMessenger
-
+from mesh.nodes.light import Light
+from modules.manager import ManagerModule
 from modules.provisioner import ProvisionerModule
 from modules.scanner import ScannerModule
-from modules.manager import ManagerModule
+from mqtt import HassMqttMessenger
+from tools import Config, Store, Tasks
 
-from mesh.nodes.light import Light
-
+from exceptions import InvalidDeviceKey, NotReady
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -88,19 +85,19 @@ class MqttGateway(Application):
     @property
     def dev_key(self):
         if not self._dev_key:
-            raise Exception("Device key not ready")
+            raise NotReady("Device key not ready")
         return self._dev_key
 
     @property
     def primary_net_key(self):
         if not self._primary_net_key:
-            raise Exception("Primary network key not ready")
+            raise NotReady("Primary network key not ready")
         return 0, self._primary_net_key
 
     @property
     def app_keys(self):
         if not self._app_keys:
-            raise Exception("Application keys not ready")
+            raise NotReady("Application keys not ready")
         return self._app_keys
 
     @property
@@ -114,8 +111,8 @@ class MqttGateway(Application):
             self._new_keys.add(name)
         try:
             return bytes.fromhex(keychain[name])
-        except:
-            raise Exception("Invalid device key")
+        except Exception as exp:
+            raise InvalidDeviceKey(f"Invalid device key: {exp}") from Exception
 
     def _initialize(self):
         keychain = self._store.get("keychain") or {}
@@ -170,8 +167,8 @@ class MqttGateway(Application):
             await node.bind(self)
             logging.info(f"Bound node {node}")
             node.ready.set()
-        except:
-            logging.exception(f"Failed to bind node {node}")
+        except Exception as exp:
+            logging.exception(f"Failed to bind node {node}: {exp}")
 
     def scan_result(self, rssi, data, options):
         MESH_MODULES["scan"]._scan_result(rssi, data, options)
@@ -185,7 +182,8 @@ class MqttGateway(Application):
     def add_node_failed(self, uuid, reason):
         MESH_MODULES["prov"]._add_node_failed(uuid, reason)
 
-    def shutdown(self, tasks):
+    def shutdown(self):
+        # TODO _messenger.shutdown() does not exists
         self._messenger.shutdown()
 
     async def run(self, args):
@@ -206,8 +204,8 @@ class MqttGateway(Application):
             try:
                 # set overall application key
                 await self.add_app_key(*self.app_keys[0])
-            except:
-                logging.exception(f"Failed to set app key {self._app_keys[0][2].bytes.hex()}")
+            except Exception as exp:
+                logging.exception(f"Failed to set app key {self._app_keys[0][2].bytes.hex()}: {exp}")
 
                 # try to re-add application key
                 await self.delete_app_key(self.app_keys[0][0], self.app_keys[0][1])
@@ -231,7 +229,7 @@ class MqttGateway(Application):
                 tasks.spawn(self._try_bind_node(node), f"bind {node}")
 
             # start MQTT task
-            tasks.spawn(self._messenger.run(self), "run messenger")
+            tasks.spawn(self._messenger.run(self), "run messenger")  # pylint: disable=too-many-function-args
 
             # wait for all tasks
             await tasks.gather()
