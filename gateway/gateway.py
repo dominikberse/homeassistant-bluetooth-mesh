@@ -34,8 +34,8 @@ MESH_MODULES = {
 
 
 NODE_TYPES = {
-    'generic': Node,
-    'light': Light,
+    "generic": Node,
+    "light": Light,
 }
 
 
@@ -43,6 +43,7 @@ class MainElement(Element):
     """
     Represents the main element of the application node
     """
+
     LOCATION = GATTNamespaceDescriptor.MAIN
     MODELS = [
         models.ConfigClient,
@@ -67,10 +68,10 @@ class MqttGateway(Application):
     def __init__(self, loop, basedir):
         super().__init__(loop)
 
-        self._store = Store(location=os.path.join(basedir, 'store.yaml'))
-        self._config = Config(os.path.join(basedir, 'config.yaml'))
+        self._store = Store(location=os.path.join(basedir, "store.yaml"))
+        self._config = Config(os.path.join(basedir, "config.yaml"))
         self._nodes = {}
-        
+
         self._messenger = None
 
         self._app_keys = None
@@ -87,19 +88,19 @@ class MqttGateway(Application):
     @property
     def dev_key(self):
         if not self._dev_key:
-            raise Exception('Device key not ready')
+            raise Exception("Device key not ready")
         return self._dev_key
 
     @property
     def primary_net_key(self):
         if not self._primary_net_key:
-            raise Exception('Primary network key not ready')
+            raise Exception("Primary network key not ready")
         return 0, self._primary_net_key
 
     @property
     def app_keys(self):
         if not self._app_keys:
-            raise Exception('Application keys not ready')
+            raise Exception("Application keys not ready")
         return self._app_keys
 
     @property
@@ -108,30 +109,30 @@ class MqttGateway(Application):
 
     def _load_key(self, keychain, name):
         if name not in keychain:
-            logging.info(f'Generating {name}...')
+            logging.info(f"Generating {name}...")
             keychain[name] = secrets.token_hex(16)
             self._new_keys.add(name)
         try:
             return bytes.fromhex(keychain[name])
         except:
-            raise Exception('Invalid device key')
+            raise Exception("Invalid device key")
 
     def _initialize(self):
-        keychain = self._store.get('keychain') or {}
-        local = self._store.section('local')
-        nodes = self._store.section('nodes')
+        keychain = self._store.get("keychain") or {}
+        local = self._store.section("local")
+        nodes = self._store.section("nodes")
 
         # load or set application parameters
-        self.address = local.get('address', 1)
-        self.iv_index = local.get('iv_index', 5)
+        self.address = local.get("address", 1)
+        self.iv_index = local.get("iv_index", 5)
 
         # load or generate keys
-        self._dev_key = DeviceKey(self._load_key(keychain, 'device_key'))
-        self._primary_net_key = NetworkKey(self._load_key(keychain, 'network_key'))
+        self._dev_key = DeviceKey(self._load_key(keychain, "device_key"))
+        self._primary_net_key = NetworkKey(self._load_key(keychain, "network_key"))
         self._app_keys = [
-                # currently just a single application key supported
-                (0, 0, ApplicationKey(self._load_key(keychain, 'app_key'))),
-            ]
+            # currently just a single application key supported
+            (0, 0, ApplicationKey(self._load_key(keychain, "app_key"))),
+        ]
 
         # initialize node manager
         self._nodes = NodeManager(nodes, self._config, NODE_TYPES)
@@ -140,21 +141,21 @@ class MqttGateway(Application):
         self._messenger = HassMqttMessenger(self._config, self._nodes)
 
         # persist changes
-        self._store.set('keychain', keychain)
+        self._store.set("keychain", keychain)
         self._store.persist()
 
     async def _import_keys(self):
-        logging.info('Importing keys...')
+        logging.info("Importing keys...")
 
-        if 'primary_net_key' in self._new_keys:
+        if "primary_net_key" in self._new_keys:
             # register primary network key as subnet key
             await self.management_interface.import_subnet(0, self.primary_net_key[1])
-            logging.info('Imported primary net key as subnet key')
+            logging.info("Imported primary net key as subnet key")
 
-        if 'app_key' in self._new_keys:
+        if "app_key" in self._new_keys:
             # import application key into daemon
-            await self.management_interface.import_app_key(*self.app_keys[0])    
-            logging.info('Imported app key')
+            await self.management_interface.import_app_key(*self.app_keys[0])
+            logging.info("Imported app key")
 
         # update application key for client models
         client = self.elements[0][models.GenericOnOffClient]
@@ -167,22 +168,22 @@ class MqttGateway(Application):
     async def _try_bind_node(self, node):
         try:
             await node.bind(self)
-            logging.info(f'Bound node {node}')
+            logging.info(f"Bound node {node}")
             node.ready.set()
         except:
-            logging.exception(f'Failed to bind node {node}')
-        
+            logging.exception(f"Failed to bind node {node}")
+
     def scan_result(self, rssi, data, options):
-        MESH_MODULES['scan']._scan_result(rssi, data, options)
+        MESH_MODULES["scan"]._scan_result(rssi, data, options)
 
     def request_prov_data(self, count):
-        return MESH_MODULES['prov']._request_prov_data(count)
+        return MESH_MODULES["prov"]._request_prov_data(count)
 
     def add_node_complete(self, uuid, unicast, count):
-        MESH_MODULES['prov']._add_node_complete(uuid, unicast, count)
+        MESH_MODULES["prov"]._add_node_complete(uuid, unicast, count)
 
     def add_node_failed(self, uuid, reason):
-        MESH_MODULES['prov']._add_node_failed(uuid, reason)
+        MESH_MODULES["prov"]._add_node_failed(uuid, reason)
 
     def shutdown(self, tasks):
         self._messenger.shutdown()
@@ -206,7 +207,7 @@ class MqttGateway(Application):
                 # set overall application key
                 await self.add_app_key(*self.app_keys[0])
             except:
-                logging.exception(f'Failed to set app key {self._app_keys[0][2].bytes.hex()}')
+                logging.exception(f"Failed to set app key {self._app_keys[0][2].bytes.hex()}")
 
                 # try to re-add application key
                 await self.delete_app_key(self.app_keys[0][0], self.app_keys[0][1])
@@ -214,33 +215,34 @@ class MqttGateway(Application):
 
             # force reloading keys
             if args.reload:
-                self._new_keys.add('primary_net_key')
-                self._new_keys.add('app_key')
+                self._new_keys.add("primary_net_key")
+                self._new_keys.add("app_key")
 
             # configure all keys
             await self._import_keys()
 
             # run user task if specified
-            if 'handler' in args:
+            if "handler" in args:
                 await args.handler(args)
                 return
 
             # initialize all nodes
             for node in self._nodes.all():
-                tasks.spawn(self._try_bind_node(node), f'bind {node}')
+                tasks.spawn(self._try_bind_node(node), f"bind {node}")
 
             # start MQTT task
-            tasks.spawn(self._messenger.run(self), 'run messenger')
+            tasks.spawn(self._messenger.run(self), "run messenger")
 
             # wait for all tasks
             await tasks.gather()
 
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--leave', action='store_true')
-    parser.add_argument('--reload', action='store_true')
-    parser.add_argument('--basedir', default='..')
-    
+    parser.add_argument("--leave", action="store_true")
+    parser.add_argument("--reload", action="store_true")
+    parser.add_argument("--basedir", default="..")
+
     # module specific CLI interfaces
     subparsers = parser.add_subparsers()
     for name, module in MESH_MODULES.items():
@@ -256,5 +258,6 @@ def main():
     with suppress(KeyboardInterrupt):
         loop.run_until_complete(app.run(args))
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

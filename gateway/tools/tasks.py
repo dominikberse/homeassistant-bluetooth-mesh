@@ -31,17 +31,17 @@ class Tasks:
 
     async def _runner(self, task, name):
         if name:
-            logging.debug(f'Spawning task to {name}...')
+            logging.debug(f"Spawning task to {name}...")
         try:
             await task
         except:
-            logging.exception('Task failed')
+            logging.exception("Task failed")
         if name:
-            logging.debug(f'{name} completed')
+            logging.debug(f"{name} completed")
 
     def spawn(self, task, name=None):
         self._tasks.add(asyncio.create_task(self._runner(task, name)))
 
     async def gather(self):
-        logging.info(f'Awaiting {len(self._tasks)} tasks')
+        logging.info(f"Awaiting {len(self._tasks)} tasks")
         await asyncio.gather(*self._tasks)

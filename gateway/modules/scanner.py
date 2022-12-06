@@ -10,6 +10,7 @@ class ScannerModule(Module):
     """
     Handle all scan related tasks
     """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -25,20 +26,20 @@ class ScannerModule(Module):
         try:
             uuid = UUID(bytes=data[:16])
             self._unprovisioned.add(uuid)
-            logging.info(f'Found unprovisioned node: {uuid}')
+            logging.info(f"Found unprovisioned node: {uuid}")
         except:
-            logging.exception('Failed to retrieve UUID')
-    
+            logging.exception("Failed to retrieve UUID")
+
     async def handle_cli(self, args):
         await self.scan()
 
         # print user friendly results
-        print(f'\nFound {len(self._unprovisioned)} nodes:')
+        print(f"\nFound {len(self._unprovisioned)} nodes:")
         for uuid in self._unprovisioned:
-            print(f'\t{uuid}')
+            print(f"\t{uuid}")
 
     async def scan(self):
-        logging.info('Scanning for unprovisioned devices...')
-        
+        logging.info("Scanning for unprovisioned devices...")
+
         await self.app.management_interface.unprovisioned_scan(seconds=10)
         await asyncio.sleep(10.0)

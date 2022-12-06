@@ -29,4 +29,3 @@ class Module:
         Run from CLI
         """
         pass
-

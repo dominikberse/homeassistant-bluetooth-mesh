@@ -18,11 +18,12 @@ class Light(Generic):
         - LightCTLServer
             - set color temperature
 
-    For now only a single element is supported. 
+    For now only a single element is supported.
     """
-    OnOffProperty = 'onoff'
-    BrightnessProperty = 'brightness'
-    TemperatureProperty = 'temperature'
+
+    OnOffProperty = "onoff"
+    BrightnessProperty = "brightness"
+    TemperatureProperty = "temperature"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -73,45 +74,33 @@ class Light(Generic):
         self.notify(Light.OnOffProperty, onoff)
 
         client = self._app.elements[0][models.GenericOnOffClient]
-        await client.set_onoff_unack(
-            self.unicast, 
-            self._app.app_keys[0][0], 
-            onoff, 
-            **kwargs)
+        await client.set_onoff_unack(self.unicast, self._app.app_keys[0][0], onoff, **kwargs)
 
     async def get_onoff(self):
         client = self._app.elements[0][models.GenericOnOffClient]
-        state = await client.get_light_status(
-            [self.unicast], 
-            self._app.app_keys[0][0])
-        
+        state = await client.get_light_status([self.unicast], self._app.app_keys[0][0])
+
         result = state[self.unicast]
         if result is None:
-            logging.warn(f'Received invalid result {state}')
+            logging.warn(f"Received invalid result {state}")
         elif not isinstance(result, BaseException):
-            self.notify(Light.OnOffProperty, result['present_onoff'])
+            self.notify(Light.OnOffProperty, result["present_onoff"])
 
     async def set_lightness_unack(self, lightness, **kwargs):
         self.notify(Light.BrightnessProperty, lightness)
 
         client = self._app.elements[0][models.LightLightnessClient]
-        await client.set_lightness_unack(
-            self.unicast, 
-            self._app.app_keys[0][0], 
-            lightness, 
-            **kwargs)
+        await client.set_lightness_unack(self.unicast, self._app.app_keys[0][0], lightness, **kwargs)
 
     async def get_lightness(self):
         client = self._app.elements[0][models.LightLightnessClient]
-        state = await client.get_lightness(
-            [self.unicast], 
-            self._app.app_keys[0][0])
+        state = await client.get_lightness([self.unicast], self._app.app_keys[0][0])
 
         result = state[self.unicast]
         if result is None:
-            logging.warn(f'Received invalid result {state}')
+            logging.warn(f"Received invalid result {state}")
         elif not isinstance(result, BaseException):
-            self.notify(Light.BrightnessProperty, result['present_lightness'])
+            self.notify(Light.BrightnessProperty, result["present_lightness"])
 
     async def set_ctl_unack(self, temperature=None, brightness=None, **kwargs):
         if temperature:
@@ -124,21 +113,14 @@ class Light(Generic):
             brightness = self.retained(Light.BrightnessProperty, 100)
 
         client = self._app.elements[0][models.LightCTLClient]
-        await client.set_ctl_unack(
-            self.unicast, 
-            self._app.app_keys[0][0], 
-            temperature, 
-            brightness,
-            **kwargs)
+        await client.set_ctl_unack(self.unicast, self._app.app_keys[0][0], temperature, brightness, **kwargs)
 
     async def get_ctl(self):
         client = self._app.elements[0][models.LightCTLClient]
-        state = await client.get_ctl(
-            [self.unicast], 
-            self._app.app_keys[0][0])
+        state = await client.get_ctl([self.unicast], self._app.app_keys[0][0])
 
         result = state[self.unicast]
         if result is None:
-            logging.warn(f'Received invalid result {state}')
+            logging.warn(f"Received invalid result {state}")
         elif not isinstance(result, BaseException):
             print(result)
