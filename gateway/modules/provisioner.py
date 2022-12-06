@@ -9,7 +9,7 @@ from . import Module
 
 
 class ProvisionerModule(Module):
-    """ 
+    """
     Provide provisioning functionality
     """
 
@@ -22,20 +22,20 @@ class ProvisionerModule(Module):
         super().initialize(app, store, config)
 
         # ensure new devices are provisioned correctly
-        self._base_address = self.store.get('base_address', 4)
+        self._base_address = self.store.get("base_address", 4)
         self.store.persist()
 
     def setup_cli(self, parser):
-        parser.add_argument('task')
-        parser.add_argument('--uuid', default=None)
+        parser.add_argument("task")
+        parser.add_argument("--uuid", default=None)
 
     async def handle_cli(self, args):
-        if args.task == 'list':
+        if args.task == "list":
             self.print_node_list()
             return
 
         # configure all provisioned
-        if args.task == 'config' and args.uuid is None:
+        if args.task == "config" and args.uuid is None:
             for node in self.app.nodes.all():
                 if not node.configured:
                     await self._configure(node)
@@ -44,57 +44,57 @@ class ProvisionerModule(Module):
             return
 
         # provision nodes from configuration
-        if args.task == 'add' and args.uuid is None:
-            for _, info in self.app._config.require('mesh').items():
-                uuid = UUID(info['uuid'])
+        if args.task == "add" and args.uuid is None:
+            for _, info in self.app._config.require("mesh").items():
+                uuid = UUID(info["uuid"])
                 if not self.app.nodes.has(uuid):
                     await self._provision(uuid)
-            
+
             self.print_node_list()
             return
 
         # reset nodes from configuration
-        if args.task == 'reset' and args.uuid is None:
+        if args.task == "reset" and args.uuid is None:
             for node in list(self.app.nodes.all()):
-                if node.config.optional('id', None) is None:
+                if node.config.optional("id", None) is None:
                     await self._reset(node)
-            
+
             self.print_node_list()
             return
 
         try:
             uuid = UUID(args.uuid)
         except:
-            print('Invalid uuid')
+            print("Invalid uuid")
             return
 
-        if args.task == 'add':
+        if args.task == "add":
             await self._provision(uuid)
             self.print_node_list()
             return
 
         node = self.app.nodes.get(uuid)
         if node is None:
-            print('Unknown node')
+            print("Unknown node")
             return
-        
-        if args.task == 'config':
+
+        if args.task == "config":
             await self._configure(node)
             return
 
-        if args.task == 'reset':
+        if args.task == "reset":
             await self._reset(node)
             self.print_node_list()
             return
 
-        print(f'Unknown task {args.task}')
+        print(f"Unknown task {args.task}")
 
     def print_node_list(self):
         """
         Print user friendly node list
         """
 
-        print(f'\nMesh contains {len(self.app.nodes)} node(s):')
+        print(f"\nMesh contains {len(self.app.nodes)} node(s):")
         for node in self.app.nodes.all():
             node.print_info()
 
@@ -109,12 +109,12 @@ class ProvisionerModule(Module):
             :param unet_index: Subnet index of the net_key
             :param uunicast: Primary Unicast address of the new node
         """
-        logging.info(f'Provisioning {count} new address(es)')
+        logging.info(f"Provisioning {count} new address(es)")
 
         prov_data = [0, self._base_address]
         self._base_address += count
 
-        self.store.set('base_address', self._base_address)
+        self.store.set("base_address", self._base_address)
         self.store.persist()
 
         return prov_data
@@ -130,14 +130,17 @@ class ProvisionerModule(Module):
         """
         _uuid = UUID(bytes=uuid)
 
-        self.app.nodes.create(_uuid, {
-            'type': 'generic',
-            'unicast': unicast,
-            'count': count,
-        })
+        self.app.nodes.create(
+            _uuid,
+            {
+                "type": "generic",
+                "unicast": unicast,
+                "count": count,
+            },
+        )
         self.app.nodes.persist()
 
-        logging.info(f'Provisioned {_uuid} as {unicast} ({count})')
+        logging.info(f"Provisioned {_uuid} as {unicast} ({count})")
         self.provisioning_done.set()
 
     def _add_node_failed(self, uuid, reason):
@@ -152,11 +155,11 @@ class ProvisionerModule(Module):
         """
         _uuid = UUID(bytes=uuid)
 
-        logging.error(f'Failed to provision {_uuid}:\n{reason}')
+        logging.error(f"Failed to provision {_uuid}:\n{reason}")
         self.provisioning_done.set()
 
     async def _provision(self, uuid):
-        logging.info(f'Provisioning node {uuid}...')
+        logging.info(f"Provisioning node {uuid}...")
 
         # provision new node
         self.provisioning_done.clear()
@@ -164,55 +167,54 @@ class ProvisionerModule(Module):
         await self.provisioning_done.wait()
 
     async def _configure(self, node):
-        logging.info(f'Configuring node {node}...')
+        logging.info(f"Configuring node {node}...")
 
         client = self.app.elements[0][models.ConfigClient]
 
         # add application key
         try:
             status = await client.add_app_key(
-                node.unicast, net_index=0,
+                node.unicast,
+                net_index=0,
                 app_key_index=self.app.app_keys[0][0],
                 net_key_index=self.app.app_keys[0][1],
-                app_key=self.app.app_keys[0][2]
+                app_key=self.app.app_keys[0][2],
             )
         except:
-            logging.exception(f'Failed to add app key for node {node}')
+            logging.exception(f"Failed to add app key for node {node}")
 
             status = await client.delete_app_key(
-                node.unicast, net_index=0,
-                app_key_index=self.app.app_keys[0][0],
-                net_key_index=self.app.app_keys[0][1]
+                node.unicast, net_index=0, app_key_index=self.app.app_keys[0][0], net_key_index=self.app.app_keys[0][1]
             )
             status = await client.add_app_key(
-                node.unicast, net_index=0,
+                node.unicast,
+                net_index=0,
                 app_key_index=self.app.app_keys[0][0],
                 net_key_index=self.app.app_keys[0][1],
-                app_key=self.app.app_keys[0][2]
+                app_key=self.app.app_keys[0][2],
             )
 
         # update friend state
-        if node.config.optional('relay', False):
+        if node.config.optional("relay", False):
             status = await client.set_relay(
-                node.unicast, net_index=0,
+                node.unicast,
+                net_index=0,
                 relay=True,
                 retransmit_count=2,
             )
 
         # try to set node type from Home Assistant
-        node.type = node.config.optional('type', node.type)
-        
+        node.type = node.config.optional("type", node.type)
+
         node.configured = True
         self.app.nodes.persist()
 
     async def _reset(self, node):
-        logging.info(f'Resetting node {node}...')
+        logging.info(f"Resetting node {node}...")
 
         client = self.app.elements[0][models.ConfigClient]
 
-        await client.node_reset(
-            node.unicast, net_index=0
-        )
+        await client.node_reset(node.unicast, net_index=0)
 
         self.app.nodes.delete(str(node.uuid))
         self.app.nodes.persist()

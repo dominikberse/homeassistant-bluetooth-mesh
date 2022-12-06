@@ -26,11 +26,11 @@ class Node:
         self.ready = asyncio.Event()
 
     def __str__(self):
-        id = self.config.optional('id')
-        
+        id = self.config.optional("id")
+
         if id:
-            return f'{id} ({self.uuid}, {self.unicast:04})' 
-        return f'{self.uuid} ({self.unicast:04})'
+            return f"{id} ({self.uuid}, {self.unicast:04})"
+        return f"{self.uuid} ({self.unicast:04})"
 
     async def bind(self, app):
         """
@@ -67,26 +67,26 @@ class Node:
 
     def print_info(self, additional=None):
         print(
-            f'\t{self.uuid}:\n'
-            f'\t\ttype: {self.type}\n'
-            f'\t\tunicast: {self.unicast} ({self.count})\n'
-            f'\t\tconfigured: {self.configured}',
+            f"\t{self.uuid}:\n"
+            f"\t\ttype: {self.type}\n"
+            f"\t\tunicast: {self.unicast} ({self.count})\n"
+            f"\t\tconfigured: {self.configured}",
         )
 
         for key, value in self.config.items():
-            print(f'\t\t{key}: {value}')
-                
+            print(f"\t\t{key}: {value}")
+
         if additional:
             for key, value in additional.items():
-                print(f'\t\t{key}: {value}')
+                print(f"\t\t{key}: {value}")
 
         print()
 
     def yaml(self):
         # UUID is used as key and does not need to be stored
         return {
-            'type': self.type,
-            'unicast': self.unicast,
-            'count': self.count,
-            'configured': self.configured,
+            "type": self.type,
+            "unicast": self.unicast,
+            "count": self.count,
+            "configured": self.configured,
         }
