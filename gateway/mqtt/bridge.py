@@ -24,9 +24,9 @@ class HassMqttBridge:
     def _property_change(self, node, property, value):
         try:
             # get handler from property name
-            handler = getattr(self, f'_notify_{property}')
+            handler = getattr(self, f"_notify_{property}")
         except:
-            logging.warning(f'Missing handler for property {property}')
+            logging.warning(f"Missing handler for property {property}")
             return
 
         # TODO: track task
@@ -47,17 +47,17 @@ class HassMqttBridge:
         # listen for incoming MQTT messages
         async with self._messenger.filtered_messages(self.component, node) as messages:
             async for message in messages:
-                logging.info(f'Received message on {message.topic}:\n{message.payload}')
+                logging.info(f"Received message on {message.topic}:\n{message.payload}")
 
                 # get command from topic and load message
-                command = message.topic.split('/')[-1]
+                command = message.topic.split("/")[-1]
                 payload = json.loads(message.payload.decode())
-                
+
                 try:
                     # get handler from command name
-                    handler = getattr(self, f'_mqtt_{command}')
+                    handler = getattr(self, f"_mqtt_{command}")
                 except:
-                    logging.warning(f'Missing handler for command {command}')
+                    logging.warning(f"Missing handler for command {command}")
                     continue
 
                 await handler(node, payload)

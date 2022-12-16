@@ -14,7 +14,8 @@ class Generic(Node):
     Provides additional functionality compared to the very basic Node class,
     like composition model helpers and node configuration.
     """
-    OnlineProperty = 'online'
+
+    OnlineProperty = "online"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -32,7 +33,7 @@ class Generic(Node):
 
     async def fetch_composition(self):
         """
-        Fetch the composition data 
+        Fetch the composition data
 
         This data contains information about the node's capabilities.
         Use the helper functions to retrieve information.
@@ -40,7 +41,7 @@ class Generic(Node):
         client = self._app.elements[0][models.ConfigClient]
         data = await client.get_composition_data([self.unicast], net_index=0, timeout=30)
         # TODO: multi page composition data support
-        page_zero = data.get(self.unicast, {}).get('zero')
+        page_zero = data.get(self.unicast, {}).get("zero")
         self._composition = Composition(page_zero)
 
     async def bind(self, app):
@@ -49,35 +50,33 @@ class Generic(Node):
         # update the composition data
         await self.fetch_composition()
 
-        logging.debug(f'Node composition:\n{self._composition}')
+        logging.debug(f"Node composition:\n{self._composition}")
 
     async def bind_model(self, model):
         """
         Bind the given model to the application key
 
         If the node supports the given model, it is bound to the appliaction key
-        and listed within the supported models. 
+        and listed within the supported models.
 
         If the node does not support the given model, the request is skipped.
         """
 
         if self._composition is None:
-            logging.info(f'No composition data for {self}')
+            logging.info(f"No composition data for {self}")
             return False
 
         element = self._composition.element(0)
         if not element.supports(model):
-            logging.info(f'{self} does not support {model}')
+            logging.info(f"{self} does not support {model}")
             return False
-        
+
         # configure model
         client = self._app.elements[0][models.ConfigClient]
         await client.bind_app_key(
-            self.unicast, net_index=0,
-            element_address=self.unicast,
-            app_key_index=self._app.app_keys[0][0],
-            model=model)
+            self.unicast, net_index=0, element_address=self.unicast, app_key_index=self._app.app_keys[0][0], model=model
+        )
         self._bound_models.add(model)
 
-        logging.info(f'{self} bound {model}')
+        logging.info(f"{self} bound {model}")
         return True
