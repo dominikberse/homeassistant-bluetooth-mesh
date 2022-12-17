@@ -7,7 +7,7 @@ class Tasks:
     Simple task pool
 
     TODO: This class can be extended in order to manage failed tasks.
-    Currently failed tasks are logged but otherwise ignored.
+    Currently failed tasks cause cancellation of other tasks.
     """
 
     def __init__(self):
@@ -36,6 +36,9 @@ class Tasks:
             await task
         except:
             logging.exception("Task failed")
+            # force cancellation of all tasks
+            # depending on the configuration, this should lead to service restart
+            self._shutdown()
         if name:
             logging.debug(f"{name} completed")
 
