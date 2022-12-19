@@ -42,7 +42,7 @@ class GenericLightBridge(HassMqttBridge):
             message["color_mode"] = True
             message["supported_color_modes"] = list(color_modes)
 
-        await self._messenger.publish(self.component, node, "config", message)
+        await self._messenger.publish(self.component, node, "config", message, retain=True)
 
     async def _state(self, node, onoff):
         """
