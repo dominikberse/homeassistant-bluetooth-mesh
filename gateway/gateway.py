@@ -114,7 +114,7 @@ class MqttGateway(Application):
             self._new_keys.add(name)
         try:
             return bytes.fromhex(keychain[name])
-        except:
+        except ValueError:
             raise Exception("Invalid device key")
 
     def _initialize(self):

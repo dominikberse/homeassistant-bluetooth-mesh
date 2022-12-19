@@ -64,7 +64,7 @@ class ProvisionerModule(Module):
 
         try:
             uuid = UUID(args.uuid)
-        except:
+        except (TypeError, ValueError):
             print("Invalid uuid")
             return
 

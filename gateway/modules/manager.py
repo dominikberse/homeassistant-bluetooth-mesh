@@ -29,7 +29,7 @@ class ManagerModule(Module):
     async def handle_cli(self, args):
         try:
             uuid = UUID(args.uuid)
-        except:
+        except (TypeError, ValueError):
             print("Invalid uuid")
             return
 

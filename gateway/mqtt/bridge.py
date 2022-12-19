@@ -25,7 +25,7 @@ class HassMqttBridge:
         try:
             # get handler from property name
             handler = getattr(self, f"_notify_{property}")
-        except:
+        except AttributeError:
             logging.warning(f"Missing handler for property {property}")
             return
 
@@ -56,7 +56,7 @@ class HassMqttBridge:
                 try:
                     # get handler from command name
                     handler = getattr(self, f"_mqtt_{command}")
-                except:
+                except AttributeError:
                     logging.warning(f"Missing handler for command {command}")
                     continue
 
