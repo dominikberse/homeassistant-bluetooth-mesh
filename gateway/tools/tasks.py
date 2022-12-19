@@ -5,9 +5,8 @@ import logging
 class Tasks:
     """
     Simple task pool
-
     TODO: This class can be extended in order to manage failed tasks.
-    Currently failed tasks cause cancellation of other tasks.
+    Currently failed tasks cause application shutdown.
     """
 
     def __init__(self):
@@ -17,15 +16,21 @@ class Tasks:
         return self
 
     async def __aexit__(self, exc_type, exc, tb):
-        await self._shutdown()
+        self._invoke_shutdown()
 
-    async def _shutdown(self):
+        # wait until finished before exiting
+        await self.gather()
+
+    def _invoke_shutdown(self):
+        logging.info("Invoke shutdown...")
+
         for task in self._tasks:
             if task.done():
                 continue
+
             try:
+                # invoke tasks cancellation
                 task.cancel()
-                await task
             except asyncio.CancelledError:
                 pass
 
@@ -34,11 +39,15 @@ class Tasks:
             logging.debug(f"Spawning task to {name}...")
         try:
             await task
+        except asyncio.CancelledError:
+            # graceful exit
+            logging.debug(f"{name} cancelled")
+            return
         except:
-            logging.exception("Task failed")
+            logging.exception(f"{name} failed")
             # force cancellation of all tasks
             # depending on the configuration, this should lead to service restart
-            await self._shutdown()
+            raise
         if name:
             logging.debug(f"{name} completed")
 
@@ -47,4 +56,6 @@ class Tasks:
 
     async def gather(self):
         logging.info(f"Awaiting {len(self._tasks)} tasks")
+
+        # wait until all tasks are completed or an exception is caught
         await asyncio.gather(*self._tasks)

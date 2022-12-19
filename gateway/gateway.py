@@ -237,6 +237,16 @@ class MqttGateway(Application):
             await tasks.gather()
 
 
+async def run(args):
+    """
+    Wrap application startup
+    """
+
+    loop = asyncio.get_event_loop()
+    app = MqttGateway(loop, args.basedir)
+
+    await app.run(args)
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--leave", action="store_true")
@@ -252,11 +262,8 @@ def main():
 
     args = parser.parse_args()
 
-    loop = asyncio.get_event_loop()
-    app = MqttGateway(loop, args.basedir)
-
     with suppress(KeyboardInterrupt):
-        loop.run_until_complete(app.run(args))
+        asyncio.run(run(args))
 
 
 if __name__ == "__main__":
