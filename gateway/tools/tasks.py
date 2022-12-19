@@ -5,8 +5,6 @@ import logging
 class Tasks:
     """
     Simple task pool
-    TODO: This class can be extended in order to manage failed tasks.
-    Currently failed tasks cause application shutdown.
     """
 
     def __init__(self):
