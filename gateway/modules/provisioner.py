@@ -77,14 +77,14 @@ class ProvisionerModule(Module):
             self.print_node_list()
             return
 
-        if args.task == "import":
-            await self._import(uuid)
-            self.print_node_list()
-            return
-
         node = self.app.nodes.get(uuid)
         if node is None:
             print("Unknown node")
+            return
+
+        if args.task == "import":
+            await self._import(node)
+            self.print_node_list()
             return
 
         if args.task == "config":
@@ -193,31 +193,27 @@ class ProvisionerModule(Module):
         await self.app.management_interface.add_node(uuid)
         await self.provisioning_done.wait()
 
-    async def _import(self, uuid, device_key=None):
-        logging.info(f"Importing node {uuid}...")
+    async def _import(self, node, device_key=None):
+        logging.info(f"Importing node {node}...")
 
-        # search store for node data
-        nodes = self.store.get("nodes", [])
+        # get device key
+        if device_key is None:
+            device_key = node.device_key
 
-        for node in nodes:
-            if node.get("uuid") == str(uuid):
+        if device_key is None:
+            logging.error(f"Missing device key for {node}")
+            return
 
-                # get device key
-                if device_key is None:
-                    device_key = node.get("device_key")
-                if device_key is None:
-                    logging.error(f"Missing device key for {uuid}")
+        # import existing node with device key
+        await self.app.management_interface.import_remote_node(
+            node.unicast,
+            node.count,
+            DeviceKey(bytes.fromhex(device_key)),
+        )
 
-                # import existing node with device key
-                await self.app.management_interface.import_remote_node(
-                    node["unicast"],
-                    node["count"],
-                    DeviceKey(bytes.fromhex(device_key)),
-                )
-
-                # ensure address is not reused
-                self.store.set("base_address", node["unicast"] + node["count"])
-                self.store.persist()
+        # ensure address is not reused
+        self.store.set("base_address", node.unicast + node.count)
+        self.store.persist()
 
     async def _configure(self, node):
         logging.info(f"Configuring node {node}...")
