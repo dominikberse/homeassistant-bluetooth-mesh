@@ -239,13 +239,20 @@ class MqttGateway(Application):
 
 async def run(args):
     """
-    Wrap application startup
+    Wrap application startup and cleanup
     """
 
     loop = asyncio.get_event_loop()
     app = MqttGateway(loop, args.basedir)
 
     await app.run(args)
+
+    orphans = asyncio.all_tasks()
+    for orphan in orphans:
+        if orphan != asyncio.current_task():
+            logging.warn(f"Orphaned task {orphan}")
+
+    logging.info("Shutdown complete")
 
 
 def main():

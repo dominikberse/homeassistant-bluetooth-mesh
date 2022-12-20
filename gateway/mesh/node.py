@@ -11,11 +11,21 @@ class Node:
     event interface for other application components.
     """
 
-    def __init__(self, uuid, type, unicast, count, configured=False, config=None):
+    def __init__(
+        self,
+        uuid,
+        type,
+        unicast,
+        count,
+        device_key=None,
+        configured=False,
+        config=None,
+    ):
         self.uuid = uuid
         self.type = type
         self.unicast = unicast
         self.count = count
+        self.device_key = device_key
         self.configured = configured
         self.config = config or Config(config={})
 
@@ -89,4 +99,5 @@ class Node:
             "unicast": self.unicast,
             "count": self.count,
             "configured": self.configured,
+            "device_key": self.device_key,
         }

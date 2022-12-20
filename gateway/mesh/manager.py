@@ -64,7 +64,9 @@ class NodeManager:
         self._nodes[str(node.uuid)] = node
 
     def create(self, uuid, info):
-        self.add(self._make_node(uuid, info))
+        node = self._make_node(uuid, info)
+        self.add(node)
+        return node
 
     def delete(self, uuid):
         del self._nodes[str(uuid)]

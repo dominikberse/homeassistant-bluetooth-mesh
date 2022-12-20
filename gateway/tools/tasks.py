@@ -7,7 +7,8 @@ class Tasks:
     Simple task pool
     """
 
-    def __init__(self):
+    def __init__(self, name="root"):
+        self._name = name
         self._tasks = set()
 
     async def __aenter__(self):
@@ -17,10 +18,14 @@ class Tasks:
         self._invoke_shutdown()
 
         # wait until finished before exiting
-        await self.gather()
+        for task in self._tasks:
+            if not task.done():
+                await task
+
+        logging.debug(f"{self._name} finalized")
 
     def _invoke_shutdown(self):
-        logging.info("Invoke shutdown...")
+        logging.info(f"{self._name}: invoke shutdown...")
 
         for task in self._tasks:
             if task.done():
@@ -34,26 +39,31 @@ class Tasks:
 
     async def _runner(self, task, name):
         if name:
-            logging.debug(f"Spawning task to {name}...")
+            logging.debug(f"{self._name}: spawning task to {name}...")
         try:
             await task
         except asyncio.CancelledError:
             # graceful exit
-            logging.debug(f"{name} cancelled")
+            logging.debug(f"{self._name}: {name} cancelled")
             return
         except:
-            logging.exception(f"{name} failed")
+            logging.exception(f"{self._name}: {name} failed")
             # force cancellation of all tasks
             # depending on the configuration, this should lead to service restart
             raise
         if name:
-            logging.debug(f"{name} completed")
+            logging.debug(f"{self._name}: {name} completed")
 
     def spawn(self, task, name=None):
-        self._tasks.add(asyncio.create_task(self._runner(task, name)))
+        self._tasks.add(
+            asyncio.create_task(
+                self._runner(task, name),
+                name=name or f"self._name + {len(self._tasks)}",
+            )
+        )
 
     async def gather(self):
-        logging.info(f"Awaiting {len(self._tasks)} tasks")
+        logging.info(f"{self._name}: awaiting {len(self._tasks)} tasks")
 
         # wait until all tasks are completed or an exception is caught
         await asyncio.gather(*self._tasks)

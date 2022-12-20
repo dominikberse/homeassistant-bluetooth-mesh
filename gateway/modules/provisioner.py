@@ -1,9 +1,13 @@
 import asyncio
 import logging
+import os
 
 from uuid import UUID
 
 from bluetooth_mesh import models
+from bluetooth_mesh.crypto import DeviceKey
+
+from mesh.composition import Composition
 
 from . import Module
 
@@ -73,6 +77,11 @@ class ProvisionerModule(Module):
             self.print_node_list()
             return
 
+        if args.task == "import":
+            await self._import(uuid)
+            self.print_node_list()
+            return
+
         node = self.app.nodes.get(uuid)
         if node is None:
             print("Unknown node")
@@ -97,6 +106,13 @@ class ProvisionerModule(Module):
         print(f"\nMesh contains {len(self.app.nodes)} node(s):")
         for node in self.app.nodes.all():
             node.print_info()
+
+    def _get_dev_key_file(self, basedir, unicast):
+        """
+        Get local device key file (<basedir>/<uuid>/dev_keys/<unicast>)
+        """
+
+        return os.path.join(basedir, self.app.uuid.hex, "dev_keys", f"{unicast:04d}")
 
     def _request_prov_data(self, count):
         """
@@ -130,7 +146,7 @@ class ProvisionerModule(Module):
         """
         _uuid = UUID(bytes=uuid)
 
-        self.app.nodes.create(
+        node = self.app.nodes.create(
             _uuid,
             {
                 "type": "generic",
@@ -138,6 +154,17 @@ class ProvisionerModule(Module):
                 "count": count,
             },
         )
+
+        # get remote device key after provisioning
+        storage = self.config.optional("bluetooth.storage")
+        if storage is not None:
+            try:
+                # read binary device key
+                with open(self._get_dev_key_file(storage, unicast), "rb") as file:
+                    node.device_key = file.read().hex()
+            except:
+                logging.exception(f"Failed to retrieve device key for {_uuid}")
+
         self.app.nodes.persist()
 
         logging.info(f"Provisioned {_uuid} as {unicast} ({count})")
@@ -165,6 +192,32 @@ class ProvisionerModule(Module):
         self.provisioning_done.clear()
         await self.app.management_interface.add_node(uuid)
         await self.provisioning_done.wait()
+
+    async def _import(self, uuid, device_key=None):
+        logging.info(f"Importing node {uuid}...")
+
+        # search store for node data
+        nodes = self.store.get("nodes", [])
+
+        for node in nodes:
+            if node.get("uuid") == str(uuid):
+
+                # get device key
+                if device_key is None:
+                    device_key = node.get("device_key")
+                if device_key is None:
+                    logging.error(f"Missing device key for {uuid}")
+
+                # import existing node with device key
+                await self.app.management_interface.import_remote_node(
+                    node["unicast"],
+                    node["count"],
+                    DeviceKey(bytes.fromhex(device_key)),
+                )
+
+                # ensure address is not reused
+                self.store.set("base_address", node["unicast"] + node["count"])
+                self.store.persist()
 
     async def _configure(self, node):
         logging.info(f"Configuring node {node}...")
