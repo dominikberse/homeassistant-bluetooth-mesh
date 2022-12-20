@@ -112,7 +112,7 @@ class ProvisionerModule(Module):
         Get local device key file (<basedir>/<uuid>/dev_keys/<unicast>)
         """
 
-        return os.path.join(basedir, self.app.uuid.hex, "dev_keys", f"{unicast:04d}")
+        return os.path.join(basedir, self.app.uuid.hex, "dev_keys", f"{unicast:04x}")
 
     def _request_prov_data(self, count):
         """
