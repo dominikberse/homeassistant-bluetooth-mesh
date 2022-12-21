@@ -9,4 +9,8 @@ mesh:
     uuid: <bluetooth_mesh_device_uuid>
     name: <hass_device_name>
     type: light             # Only type supported for now.
+    # brightness_min: 0     # Might be always 0.
+    # brightness_max: 100   # Max BLE brightness value
+    # mireds_min: 0         # Min BLE mireds value.
+    # mireds_max: 100       # Max BLE mireds value
     relay: false            # Whether this node should act as a Bluetooth Relay
