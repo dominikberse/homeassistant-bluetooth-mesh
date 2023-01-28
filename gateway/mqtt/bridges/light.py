@@ -60,7 +60,7 @@ class GenericLightBridge(HassMqttBridge):
         if brightness_max:
             self.brightness_max = brightness_max
 
-        await self._messenger.publish(self.component, node, "config", message)
+        await self._messenger.publish(self.component, node, "config", message, retain=True)
 
     async def _state(self, node, onoff):
         """
