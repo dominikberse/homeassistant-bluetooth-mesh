@@ -143,3 +143,11 @@ class Light(Generic):
             logging.warning(f"Received invalid result {state}")
         elif not isinstance(result, BaseException):
             logging.info(f"Get CTL: {state}")
+
+        state = await client.get_lightness_range([self.unicast], self._app.app_keys[0][0])
+
+        result = state[self.unicast]
+        if result is None:
+            logging.warning(f"Received invalid result {state}")
+        elif not isinstance(result, BaseException):
+            logging.info(f"Get Lightness Range: {state}")
