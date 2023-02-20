@@ -64,14 +64,20 @@ class HassMqttMessenger:
 
     async def publish(self, component, node, topic, message, **kwargs):
         """
-        Send a state update for a specific nde
+        Send a state update for a specific node
         """
         if isinstance(message, dict):
             message = json.dumps(message)
 
         await self._client.publish(f"{self.node_topic(component, node)}/{topic}", str(message).encode(), **kwargs)
 
-    async def run(self):
+    async def shutdown(self):
+        """
+        Disconnect from MQTT
+        """
+        await self._client.disconnect()
+
+    async def run(self, app):
         async with AsyncExitStack() as stack:
             tasks = await stack.enter_async_context(Tasks())
 

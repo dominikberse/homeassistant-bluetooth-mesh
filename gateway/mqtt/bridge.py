@@ -1,6 +1,7 @@
+"""MQTT Bridge"""
+import asyncio
 import json
 import logging
-import asyncio
 
 
 class HassMqttBridge:
@@ -21,12 +22,12 @@ class HassMqttBridge:
     def component(self):
         return None
 
-    def _property_change(self, node, property, value):
+    def _property_change(self, node, property, value):  # pylint: disable=redefined-builtin
         try:
             # get handler from property name
             handler = getattr(self, f"_notify_{property}")
-        except:
-            logging.warning(f"Missing handler for property {property}")
+        except Exception as exp:  # pylint: disable=broad-except
+            logging.warning(f"Missing handler for property {property}: {exp}")
             return
 
         # TODO: track task
@@ -56,8 +57,8 @@ class HassMqttBridge:
                 try:
                     # get handler from command name
                     handler = getattr(self, f"_mqtt_{command}")
-                except:
-                    logging.warning(f"Missing handler for command {command}")
+                except Exception as exp:  # pylint: disable=broad-except
+                    logging.warning(f"Missing handler for command {command}: {exp}")
                     continue
 
                 await handler(node, payload)
@@ -66,4 +67,3 @@ class HassMqttBridge:
         """
         Send discovery message
         """
-        pass
