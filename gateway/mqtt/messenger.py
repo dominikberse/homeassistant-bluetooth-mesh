@@ -1,14 +1,13 @@
+"""MQTT Messenger"""
 import json
 import logging
-
-from asyncio_mqtt.client import Client, MqttError
 from contextlib import AsyncExitStack
 
+from asyncio_mqtt.client import Client
 from mesh import Node
 from tools import Tasks
 
 from .bridges import light
-
 
 BRIDGES = {
     "light": light.GenericLightBridge,
@@ -72,7 +71,7 @@ class HassMqttMessenger:
 
         await self._client.publish(f"{self.node_topic(component, node)}/{topic}", str(message).encode(), **kwargs)
 
-    async def run(self, app):
+    async def run(self):
         async with AsyncExitStack() as stack:
             tasks = await stack.enter_async_context(Tasks())
 
