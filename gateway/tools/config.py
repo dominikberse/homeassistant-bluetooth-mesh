@@ -1,5 +1,8 @@
-import yaml
+"""Config"""
 import logging
+
+import yaml
+from exceptions import ConfigException
 
 
 class Config:
@@ -8,14 +11,14 @@ class Config:
 
         # load user configuration
         if self._filename:
-            with open(self._filename, "r") as config_file:
+            with open(self._filename, "r", encoding="utf-8") as config_file:
                 self._config = yaml.safe_load(config_file)
 
         elif config is not None:
             self._config = config
 
         else:
-            raise Exception("Invalid config initialization")
+            raise ConfigException(f"Invalid config initialization: {config}")
 
     def _get(self, path, section, info):
         if "." in path:
@@ -54,9 +57,9 @@ class Config:
         """
         mesh = self.optional("mesh", None) or {}
 
-        for id, info in mesh.items():
+        for node_id, info in mesh.items():
             if info.get("uuid") == str(uuid):
-                return Config(config={"id": id, **info})
+                return Config(config={"id": node_id, **info})
 
         logging.warning(f"Missing configuration for node {uuid}")
         return Config(config={})
