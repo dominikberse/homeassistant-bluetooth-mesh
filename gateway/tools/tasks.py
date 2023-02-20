@@ -1,3 +1,4 @@
+"""Tasks"""
 import asyncio
 import logging
 
@@ -16,7 +17,7 @@ class Tasks:
     async def __aenter__(self):
         return self
 
-    async def __aexit__(self, exc_type, exc, tb):
+    async def __aexit__(self, exc_type, exc, tb):  # pylint: disable=invalid-name
         await self._shutdown()
 
     async def _shutdown(self):
@@ -34,8 +35,8 @@ class Tasks:
             logging.debug(f"Spawning task to {name}...")
         try:
             await task
-        except:
-            logging.exception("Task failed")
+        except Exception as exp:  # pylint: disable=broad-except
+            logging.exception(f"Task failed: {exp}")
         if name:
             logging.debug(f"{name} completed")
 

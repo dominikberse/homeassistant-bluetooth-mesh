@@ -1,5 +1,8 @@
-import yaml
+"""Store"""
 import os
+
+import yaml
+from exceptions import StoreException
 
 
 class Store:
@@ -12,11 +15,11 @@ class Store:
         self._delegate = delegate
 
         if not self._location and not self._delegate:
-            raise Exception("Either delegate or location must be specified")
+            raise StoreException(f"Either delegate or location must be specified: {self._location}/{self._delegate}")
 
         if self._location:
             if os.path.exists(self._location):
-                with open(self._location, "r") as store_file:
+                with open(self._location, "r", encoding="utf-8") as store_file:
                     self._data = yaml.safe_load(store_file)
             else:
                 # create initial base store
@@ -24,7 +27,7 @@ class Store:
 
         if self._delegate:
             if data is None:
-                raise Exception("Substore data not available")
+                raise StoreException(f"Substore data not available: {data}")
             self._data = data
 
     def persist(self):
@@ -34,7 +37,7 @@ class Store:
 
         if self._location:
             # persist to actual location
-            with open(self._location, "w") as store_file:
+            with open(self._location, "w", encoding="utf-8") as store_file:
                 yaml.dump(self._data, store_file)
 
     def section(self, name, subclass=None):
