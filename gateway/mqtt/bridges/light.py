@@ -2,6 +2,8 @@
 from mesh.nodes.light import (
     BLE_MESH_MAX_LIGHTNESS,
     BLE_MESH_MAX_TEMPERATURE,
+    BLE_MESH_MAX_MIRED,
+    BLE_MESH_MIN_MIRED,
     Light,
 )
 from mqtt.bridge import HassMqttBridge
@@ -57,8 +59,8 @@ class GenericLightBridge(HassMqttBridge):
             color_modes.add("color_temp")
             # convert from Kelvin to mireds
             # TODO: look up max/min values from device
-            message["min_mireds"] = node.config.optional("min_mireds", 238)
-            message["max_mireds"] = node.config.optional("max_mireds", 454)
+            message["min_mireds"] = node.config.optional("min_mireds", BLE_MESH_MIN_MIRED)
+            message["max_mireds"] = node.config.optional("max_mireds", BLE_MESH_MAX_MIRED)
 
         if color_modes:
             message["color_mode"] = True
@@ -87,7 +89,7 @@ class GenericLightBridge(HassMqttBridge):
 
     async def _mqtt_set(self, node, payload):
         if "color_temp" in payload:
-            await node.set_mireds(payload["color_temp"])
+            await node.mireds_to_kelvin(payload["color_temp"])
 
         if "brightness" in payload:
             brightness = int(payload["brightness"])

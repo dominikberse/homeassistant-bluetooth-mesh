@@ -8,8 +8,10 @@ from .generic import Generic
 # https://developer.nordicsemi.com/nRF_Connect_SDK/doc/1.9.99-dev1/nrf/libraries/bluetooth_services/mesh/light_ctl_srv.html?highlight=65535%20light#states
 BLE_MESH_MIN_LIGHTNESS = 0
 BLE_MESH_MAX_LIGHTNESS = 65535
-BLE_MESH_MIN_TEMPERATURE = 800
-BLE_MESH_MAX_TEMPERATURE = 20000
+BLE_MESH_MIN_TEMPERATURE = 800  # Kelvin
+BLE_MESH_MAX_TEMPERATURE = 20000  # Kelvin
+BLE_MESH_MIN_MIRED = 50
+BLE_MESH_MAX_MIRED = 1250
 
 
 class Light(Generic):
@@ -52,13 +54,16 @@ class Light(Generic):
         elif self._is_model_bound(models.LightCTLServer):
             await self.set_ctl_unack(brightness=brightness)
 
-    async def set_kelvin(self, temperature):
+    async def kelvin(self, temperature):
         if self._is_model_bound(models.LightCTLServer):
+            logging.info(f"{temperature} Kelvin")
             await self.set_ctl_unack(temperature)
 
-    async def set_mireds(self, temperature):
+    async def mireds_to_kelvin(self, temperature):
         if self._is_model_bound(models.LightCTLServer):
-            await self.set_ctl_unack(1000000 // temperature)
+            kelvin = 1000000 // temperature
+            logging.info(f"{temperature} mired = {kelvin} Kelvin")
+            await self.set_ctl_unack(kelvin)
 
     async def bind(self, app):
         await super().bind(app)
@@ -71,11 +76,13 @@ class Light(Generic):
             self._features.add(Light.OnOffProperty)
             self._features.add(Light.BrightnessProperty)
             await self.get_lightness()
+            await self.get_lightness_range()
 
         if await self.bind_model(models.LightCTLServer):
             self._features.add(Light.TemperatureProperty)
             self._features.add(Light.BrightnessProperty)
             await self.get_ctl()
+            await self.get_light_temperature_range()
 
     async def set_onoff_unack(self, onoff, **kwargs):
         self.notify(Light.OnOffProperty, onoff)
@@ -113,6 +120,16 @@ class Light(Generic):
             logging.info(f"Get Lightness: {state}")
             self.notify(Light.BrightnessProperty, result["present_lightness"])
 
+    async def get_lightness_range(self):
+        client = self._app.elements[0][models.LightLightnessClient]
+        state = await client.get_lightness_range([self.unicast], self._app.app_keys[0][0])
+
+        result = state[self.unicast]
+        if result is None:
+            logging.warning(f"Received invalid result {state}")
+        elif not isinstance(result, BaseException):
+            logging.info(f"Get Lightness Range: {state}")
+
     async def set_ctl_unack(self, temperature=None, brightness=None, **kwargs):
         if temperature and temperature < BLE_MESH_MIN_TEMPERATURE:
             temperature = BLE_MESH_MIN_TEMPERATURE
@@ -143,3 +160,13 @@ class Light(Generic):
             logging.warning(f"Received invalid result {state}")
         elif not isinstance(result, BaseException):
             logging.info(f"Get CTL: {state}")
+
+    async def get_light_temperature_range(self):
+        client = self._app.elements[0][models.LightCTLClient]
+        state = await client.get_light_temperature_range([self.unicast], self._app.app_keys[0][0])
+
+        result = state[self.unicast]
+        if result is None:
+            logging.warning(f"Received invalid result {state}")
+        elif not isinstance(result, BaseException):
+            logging.info(f"Get Light Temperature Range: {state}")
