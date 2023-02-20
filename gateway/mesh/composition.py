@@ -1,3 +1,6 @@
+"""Mesh Composition"""
+
+
 class Model:
     def __init__(self, data):
         self._model_id = data.get("model_id")

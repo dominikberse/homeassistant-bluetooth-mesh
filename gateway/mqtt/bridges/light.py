@@ -1,5 +1,9 @@
-"""MQTT Light Module"""
-from mesh.nodes.light import Light
+"""MQTT Light Bridge"""
+from mesh.nodes.light import (
+    BLE_MESH_MAX_LIGHTNESS,
+    BLE_MESH_MAX_TEMPERATURE,
+    Light,
+)
 from mqtt.bridge import HassMqttBridge
 
 
@@ -19,15 +23,22 @@ class GenericLightBridge(HassMqttBridge):
 
     async def config(self, node):
         color_modes = set()
+
+        # Brightness Config
+        brightness_min = node.config.optional("brightness_min")
+        brightness_max = node.config.optional("brightness_max")
+        if brightness_min:
+            self.brightness_min = brightness_min
+        if brightness_max:
+            self.brightness_max = brightness_max
+
         message = {
             "dev": {
-                "ids": [
-                node.config.require("id")
-                ],
+                "ids": [node.config.require("id")],
                 "name": f"{node.config.optional('name')}-{node.config.require('id')}",
                 "sw": "1.0",
                 "mf": "BLE MESH",
-                "mdl": node.config.optional("type")
+                "mdl": node.config.optional("type"),
             },
             "~": self._messenger.node_topic(self.component, node),
             "name": node.config.optional("name"),
@@ -39,26 +50,19 @@ class GenericLightBridge(HassMqttBridge):
         }
 
         if node.supports(Light.BrightnessProperty):
-            message["brightness_scale"] = 65
+            message["brightness_scale"] = 100  # brightness_max // 100 ?
             message["brightness"] = True
 
         if node.supports(Light.TemperatureProperty):
             color_modes.add("color_temp")
             # convert from Kelvin to mireds
             # TODO: look up max/min values from device
-            message['min_mireds'] = node.config.optional("min_mireds",238)
-            message['max_mireds'] = node.config.optional("max_mireds",454)
+            message["min_mireds"] = node.config.optional("min_mireds", 238)
+            message["max_mireds"] = node.config.optional("max_mireds", 454)
 
         if color_modes:
             message["color_mode"] = True
             message["supported_color_modes"] = list(color_modes)
-
-        brightness_min = node.config.optional("brightness_min")
-        brightness_max = node.config.optional("brightness_max")
-        if brightness_min:
-            self.brightness_min = brightness_min
-        if brightness_max:
-            self.brightness_max = brightness_max
 
         await self._messenger.publish(self.component, node, "config", message, retain=True)
 
@@ -72,21 +76,29 @@ class GenericLightBridge(HassMqttBridge):
         message = {"state": "ON" if onoff else "OFF"}
 
         if onoff and node.supports(Light.BrightnessProperty):
-            message["brightness"] = int(node.retained(Light.BrightnessProperty, 100)) / self.brightness_max * 100
+            message["brightness"] = (
+                int(node.retained(Light.BrightnessProperty, BLE_MESH_MAX_LIGHTNESS)) / self.brightness_max * 100
+            )
 
         if onoff and node.supports(Light.TemperatureProperty):
-            message["color_temp"] = node.retained(Light.TemperatureProperty, 255)
+            message["color_temp"] = node.retained(Light.TemperatureProperty, BLE_MESH_MAX_TEMPERATURE)
 
         await self._messenger.publish(self.component, node, "state", message, retain=True)
 
     async def _mqtt_set(self, node, payload):
         if "color_temp" in payload:
             await node.set_mireds(payload["color_temp"])
+
         if "brightness" in payload:
-            await node.set_brightness(int(int(payload["brightness"]) * self.brightness_max / 100))
+            brightness = int(payload["brightness"])
+            desired_brightness = int(brightness * self.brightness_max / 100)
+            if desired_brightness > BLE_MESH_MAX_LIGHTNESS:
+                desired_brightness = BLE_MESH_MAX_LIGHTNESS
+            await node.set_brightness(desired_brightness)
 
         if payload.get("state") == "ON":
             await node.turn_on()
+
         if payload.get("state") == "OFF":
             await node.turn_off()
 

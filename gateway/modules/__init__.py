@@ -1,3 +1,6 @@
+"""Module"""
+
+
 class Module:
     """
     Base class for application modules
@@ -14,18 +17,16 @@ class Module:
         Do additional initialization after Bluetooth layer is available
         """
 
-        self.app = app
-        self.store = store
-        self.config = config
+        self.app = app  # pylint: disable=attribute-defined-outside-init
+        self.store = store  # pylint: disable=attribute-defined-outside-init
+        self.config = config  # pylint: disable=attribute-defined-outside-init
 
     def setup_cli(self, parser):
         """
         Setup argparse sub parser for direct CLI usage
         """
-        pass
 
     async def handle_cli(self, args):
         """
         Run from CLI
         """
-        pass
