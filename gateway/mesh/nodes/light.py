@@ -1,9 +1,15 @@
-import asyncio
+"""Mesh Nodes Light"""
 import logging
+
+from bluetooth_mesh import models
 
 from .generic import Generic
 
-from bluetooth_mesh import models
+# https://developer.nordicsemi.com/nRF_Connect_SDK/doc/1.9.99-dev1/nrf/libraries/bluetooth_services/mesh/light_ctl_srv.html?highlight=65535%20light#states
+BLE_MESH_MIN_LIGHTNESS = 0
+BLE_MESH_MAX_LIGHTNESS = 65535
+BLE_MESH_MIN_TEMPERATURE = 800
+BLE_MESH_MAX_TEMPERATURE = 20000
 
 
 class Light(Generic):
@@ -30,18 +36,19 @@ class Light(Generic):
 
         self._features = set()
 
-    def supports(self, property):
+    def supports(self, property):  # pylint: disable=redefined-builtin
+        logging.debug(f"Supports: {self._features}")
         return property in self._features
 
     async def turn_on(self):
-        await self.set_onoff_unack(True, transition_time=0.5)
+        await self.set_onoff_unack(True, transition_time=0)
 
     async def turn_off(self):
-        await self.set_onoff_unack(False, transition_time=0.5)
+        await self.set_onoff_unack(False, transition_time=0)
 
     async def set_brightness(self, brightness):
         if self._is_model_bound(models.LightLightnessServer):
-            await self.set_lightness_unack(brightness, transition_time=0.5)
+            await self.set_lightness_unack(brightness, transition_time=0)
         elif self._is_model_bound(models.LightCTLServer):
             await self.set_ctl_unack(brightness=brightness)
 
@@ -82,11 +89,14 @@ class Light(Generic):
 
         result = state[self.unicast]
         if result is None:
-            logging.warn(f"Received invalid result {state}")
+            logging.warning(f"Received invalid result {state}")
         elif not isinstance(result, BaseException):
+            logging.info(f"Get OnOff: {state}")
             self.notify(Light.OnOffProperty, result["present_onoff"])
 
     async def set_lightness_unack(self, lightness, **kwargs):
+        if lightness > BLE_MESH_MAX_LIGHTNESS:
+            lightness = BLE_MESH_MAX_LIGHTNESS
         self.notify(Light.BrightnessProperty, lightness)
 
         client = self._app.elements[0][models.LightLightnessClient]
@@ -98,19 +108,28 @@ class Light(Generic):
 
         result = state[self.unicast]
         if result is None:
-            logging.warn(f"Received invalid result {state}")
+            logging.warning(f"Received invalid result {state}")
         elif not isinstance(result, BaseException):
+            logging.info(f"Get Lightness: {state}")
             self.notify(Light.BrightnessProperty, result["present_lightness"])
 
     async def set_ctl_unack(self, temperature=None, brightness=None, **kwargs):
+        if temperature and temperature < BLE_MESH_MIN_TEMPERATURE:
+            temperature = BLE_MESH_MIN_TEMPERATURE
+        elif temperature and temperature > BLE_MESH_MAX_TEMPERATURE:
+            temperature = BLE_MESH_MAX_TEMPERATURE
+        if brightness and brightness > BLE_MESH_MAX_LIGHTNESS:
+            brightness = BLE_MESH_MAX_LIGHTNESS
+
         if temperature:
             self.notify(Light.TemperatureProperty, temperature)
         else:
-            temperature = self.retained(Light.TemperatureProperty, 255)
+            temperature = self.retained(Light.TemperatureProperty, BLE_MESH_MAX_TEMPERATURE)
+
         if brightness:
             self.notify(Light.BrightnessProperty, temperature)
         else:
-            brightness = self.retained(Light.BrightnessProperty, 100)
+            brightness = self.retained(Light.BrightnessProperty, BLE_MESH_MAX_LIGHTNESS)
 
         client = self._app.elements[0][models.LightCTLClient]
         await client.set_ctl_unack(self.unicast, self._app.app_keys[0][0], temperature, brightness, **kwargs)
@@ -121,6 +140,6 @@ class Light(Generic):
 
         result = state[self.unicast]
         if result is None:
-            logging.warn(f"Received invalid result {state}")
+            logging.warning(f"Received invalid result {state}")
         elif not isinstance(result, BaseException):
-            print(result)
+            logging.info(f"Get CTL: {state}")

@@ -1,6 +1,8 @@
+"""Mesh manager"""
 import logging
-
 from uuid import UUID
+
+from exceptions import InvalidNode
 
 
 class NodeManager:
@@ -38,7 +40,7 @@ class NodeManager:
                 info["type"] = typename
 
         if typename is None or typename not in self._types:
-            raise Exception(f'Invalid node type "{typename}" for {uuid}')
+            raise InvalidNode(f'Invalid node type "{typename}" for {uuid}')
 
         # create node instance of specific type
         return self._types[typename](uuid, config=node_config, **info)

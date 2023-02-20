@@ -1,6 +1,5 @@
-import asyncio
+"""Manager"""
 import logging
-
 from uuid import UUID
 
 from bluetooth_mesh import models
@@ -18,7 +17,7 @@ class ManagerModule(Module):
 
         self._get_result = None
 
-    def initialize(self, app, store, config):
+    def initialize(self, app, store, config):  # pylint: disable=useless-parent-delegation
         super().initialize(app, store, config)
 
     def setup_cli(self, parser):
@@ -29,13 +28,13 @@ class ManagerModule(Module):
     async def handle_cli(self, args):
         try:
             uuid = UUID(args.uuid)
-        except:
-            print("Invalid uuid")
+        except Exception as exp:  # pylint: disable=broad-except
+            logging.info(f"Invalid uuid: {exp}")
             return
 
         node = self.app.nodes.get(uuid)
         if node is None:
-            print("Unknown node")
+            logging.info(f"Unknown node {node}")
             return
 
         if args.operation == "get":
@@ -44,14 +43,14 @@ class ManagerModule(Module):
             if args.field == "composition":
                 await self._get(uuid, node.unicast, "composition_data")
 
-            print("\nGet returned:")
+            logging.info("Get returned:")
             node.print_info(self._get_result)
             return
 
         if args.operation == "set":
             return
 
-        print(f"Unknown operation {args.operation}")
+        logging.info("Unknown operation {args.operation}")
 
     async def _get(self, uuid, address, getter):
         logging.info(f"Get {getter} from {uuid} ({address})...")

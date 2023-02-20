@@ -1,6 +1,6 @@
+"""Provisioner"""
 import asyncio
 import logging
-
 from uuid import UUID
 
 from bluetooth_mesh import models
@@ -22,7 +22,7 @@ class ProvisionerModule(Module):
         super().initialize(app, store, config)
 
         # ensure new devices are provisioned correctly
-        self._base_address = self.store.get("base_address", 4)
+        self._base_address = self.store.get("base_address", 4)  # pylint: disable=attribute-defined-outside-init
         self.store.persist()
 
     def setup_cli(self, parser):
@@ -45,7 +45,7 @@ class ProvisionerModule(Module):
 
         # provision nodes from configuration
         if args.task == "add" and args.uuid is None:
-            for _, info in self.app._config.require("mesh").items():
+            for _, info in self.app._config.require("mesh").items():  # pylint: disable=protected-access
                 uuid = UUID(info["uuid"])
                 if not self.app.nodes.has(uuid):
                     await self._provision(uuid)
@@ -64,8 +64,8 @@ class ProvisionerModule(Module):
 
         try:
             uuid = UUID(args.uuid)
-        except:
-            print("Invalid uuid")
+        except Exception as exp:  # pylint: disable=broad-except
+            logging.info(f"Invalid uuid: {uuid}: {exp}")
             return
 
         if args.task == "add":
@@ -75,7 +75,7 @@ class ProvisionerModule(Module):
 
         node = self.app.nodes.get(uuid)
         if node is None:
-            print("Unknown node")
+            logging.info(f"Unknown node: {node}")
             return
 
         if args.task == "config":
@@ -87,14 +87,14 @@ class ProvisionerModule(Module):
             self.print_node_list()
             return
 
-        print(f"Unknown task {args.task}")
+        logging.info(f"Unknown task {args.task}")
 
     def print_node_list(self):
         """
         Print user friendly node list
         """
 
-        print(f"\nMesh contains {len(self.app.nodes)} node(s):")
+        logging.info(f"Mesh contains {len(self.app.nodes)} node(s):")
         for node in self.app.nodes.all():
             node.print_info()
 
@@ -173,20 +173,20 @@ class ProvisionerModule(Module):
 
         # add application key
         try:
-            status = await client.add_app_key(
+            await client.add_app_key(
                 node.unicast,
                 net_index=0,
                 app_key_index=self.app.app_keys[0][0],
                 net_key_index=self.app.app_keys[0][1],
                 app_key=self.app.app_keys[0][2],
             )
-        except:
-            logging.exception(f"Failed to add app key for node {node}")
+        except Exception as exp:  # pylint: disable=broad-except
+            logging.exception(f"Failed to add app key for node {node}: {exp}")
 
-            status = await client.delete_app_key(
+            await client.delete_app_key(
                 node.unicast, net_index=0, app_key_index=self.app.app_keys[0][0], net_key_index=self.app.app_keys[0][1]
             )
-            status = await client.add_app_key(
+            await client.add_app_key(
                 node.unicast,
                 net_index=0,
                 app_key_index=self.app.app_keys[0][0],
@@ -196,7 +196,7 @@ class ProvisionerModule(Module):
 
         # update friend state
         if node.config.optional("relay", False):
-            status = await client.set_relay(
+            await client.set_relay(
                 node.unicast,
                 net_index=0,
                 relay=True,

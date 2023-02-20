@@ -1,7 +1,9 @@
-import logging
+"""Scanner"""
 import asyncio
-
+import logging
 from uuid import UUID
+
+from exceptions import ScanException
 
 from . import Module
 
@@ -16,7 +18,7 @@ class ScannerModule(Module):
 
         self._unprovisioned = set()
 
-    def _scan_result(self, rssi, data, options):
+    def _scan_result(self, rssi, data, options):  # pylint: disable=unused-argument
         """
         The method is called from the bluetooth-meshd daemon when a
         unique UUID has been seen during UnprovisionedScan() for
@@ -27,19 +29,18 @@ class ScannerModule(Module):
             uuid = UUID(bytes=data[:16])
             self._unprovisioned.add(uuid)
             logging.info(f"Found unprovisioned node: {uuid}")
-        except:
-            logging.exception("Failed to retrieve UUID")
+            logging.info(f"Options not used: {options}")
+        except ScanException as exp:
+            logging.exception(f"Failed to retrieve UUID: {exp}")
 
     async def handle_cli(self, args):
         await self.scan()
-
         # print user friendly results
-        print(f"\nFound {len(self._unprovisioned)} nodes:")
+        logging.info(f"Found {len(self._unprovisioned)} nodes:")
         for uuid in self._unprovisioned:
-            print(f"\t{uuid}")
+            logging.info(f"UUID => {uuid}")
 
     async def scan(self):
         logging.info("Scanning for unprovisioned devices...")
-
         await self.app.management_interface.unprovisioned_scan(seconds=10)
         await asyncio.sleep(10.0)

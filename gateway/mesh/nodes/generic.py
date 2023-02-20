@@ -1,10 +1,9 @@
-import asyncio
+"""Mesh Nodes Generic"""
 import logging
 
-from mesh import Node
-from mesh.composition import Composition, Element
-
 from bluetooth_mesh import models
+from mesh import Node
+from mesh.composition import Composition
 
 
 class Generic(Node):
@@ -40,8 +39,12 @@ class Generic(Node):
         """
         client = self._app.elements[0][models.ConfigClient]
         data = await client.get_composition_data([self.unicast], net_index=0, timeout=30)
+        logging.info(f"Fetch composition: {data}")
         # TODO: multi page composition data support
+        if not data:
+            logging.warning(f"Fetch composition is NONE: {data}")
         page_zero = data.get(self.unicast, {}).get("zero")
+        logging.info(f"Page Zone: {page_zero}")
         self._composition = Composition(page_zero)
 
     async def bind(self, app):

@@ -1,4 +1,6 @@
+"""Mesh Node"""
 import asyncio
+import logging
 
 from tools import Config
 
@@ -11,7 +13,7 @@ class Node:
     event interface for other application components.
     """
 
-    def __init__(self, uuid, type, unicast, count, configured=False, config=None):
+    def __init__(self, uuid, type, unicast, count, configured=False, config=None):  # pylint: disable=redefined-builtin
         self.uuid = uuid
         self.type = type
         self.unicast = unicast
@@ -26,7 +28,7 @@ class Node:
         self.ready = asyncio.Event()
 
     def __str__(self):
-        id = self.config.optional("id")
+        id = self.config.optional("id")  # pylint: disable=redefined-builtin
 
         if id:
             return f"{id} ({self.uuid}, {self.unicast:04})"
@@ -39,7 +41,7 @@ class Node:
         Subclasses can use this function to configure Bluetooth Mesh
         models on the remote node.
         """
-        self._app = app
+        self._app = app  # pylint: disable=attribute-defined-outside-init
 
     def subscribe(self, subscriber, resend=True):
         """
@@ -47,10 +49,11 @@ class Node:
         """
         self._subscribers.add(subscriber)
 
-        for property, value in self._retained.items():
+        for property, value in self._retained.items():  # pylint: disable=redefined-builtin
             subscriber(self, property, value)
+        logging.info(f"Subscribe resend : {resend}")
 
-    def notify(self, property, value):
+    def notify(self, property, value):  # pylint: disable=redefined-builtin
         """
         Notify all subscribers about state change
         """
@@ -59,14 +62,14 @@ class Node:
         for subscriber in self._subscribers:
             subscriber(self, property, value)
 
-    def retained(self, property, fallback):
+    def retained(self, property, fallback):  # pylint: disable=redefined-builtin
         """
         Get the latest value for that property
         """
         return self._retained.get(property, fallback)
 
     def print_info(self, additional=None):
-        print(
+        logging.info(
             f"\t{self.uuid}:\n"
             f"\t\ttype: {self.type}\n"
             f"\t\tunicast: {self.unicast} ({self.count})\n"
@@ -74,13 +77,13 @@ class Node:
         )
 
         for key, value in self.config.items():
-            print(f"\t\t{key}: {value}")
+            logging.info(f"\t\t{key}: {value}")
 
         if additional:
             for key, value in additional.items():
-                print(f"\t\t{key}: {value}")
+                logging.info(f"\t\t{key}: {value}")
 
-        print()
+        logging.info("|___________________________|")
 
     def yaml(self):
         # UUID is used as key and does not need to be stored
