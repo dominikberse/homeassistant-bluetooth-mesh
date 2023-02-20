@@ -8,8 +8,10 @@ from .generic import Generic
 # https://developer.nordicsemi.com/nRF_Connect_SDK/doc/1.9.99-dev1/nrf/libraries/bluetooth_services/mesh/light_ctl_srv.html?highlight=65535%20light#states
 BLE_MESH_MIN_LIGHTNESS = 0
 BLE_MESH_MAX_LIGHTNESS = 65535
-BLE_MESH_MIN_TEMPERATURE = 800
-BLE_MESH_MAX_TEMPERATURE = 20000
+BLE_MESH_MIN_TEMPERATURE = 800  # Kelvin
+BLE_MESH_MAX_TEMPERATURE = 20000  # Kelvin
+BLE_MESH_MIN_MIRED = 50  # 6500K
+BLE_MESH_MAX_MIRED = 1250  # 1900K
 
 
 class Light(Generic):
@@ -52,11 +54,11 @@ class Light(Generic):
         elif self._is_model_bound(models.LightCTLServer):
             await self.set_ctl_unack(brightness=brightness)
 
-    async def set_kelvin(self, temperature):
+    async def kelvin_to_mired(self, temperature):
         if self._is_model_bound(models.LightCTLServer):
             await self.set_ctl_unack(temperature)
 
-    async def set_mireds(self, temperature):
+    async def mireds_to_kelvin(self, temperature):
         if self._is_model_bound(models.LightCTLServer):
             await self.set_ctl_unack(1000000 // temperature)
 
