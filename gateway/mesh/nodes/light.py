@@ -115,6 +115,7 @@ class Light(Generic):
             logging.info(f"Get Lightness: {state}")
             self.notify(Light.BrightnessProperty, result["present_lightness"])
 
+        client = self._app.elements[0][models.LightLightnessClient]
         state = await client.get_lightness_range([self.unicast], self._app.app_keys[0][0])
 
         result = state[self.unicast]
