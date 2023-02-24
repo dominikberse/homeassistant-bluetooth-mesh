@@ -1,7 +1,7 @@
 asyncio-mqtt==0.12.1
 bitstring==3.1.9
 black==22.10.0
-git+https://github.com/minims/python-bluetooth-mesh@eb72f5f0040f322dfa4d38ca323b437e3f3c47a4
+git+https://github.com/minims/python-bluetooth-mesh@7a8b015f1d303ca5dd73946c4fff8721762cc312
 cffi==1.15.1
 construct==2.9.45
 crc==0.3.0
