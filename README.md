@@ -50,6 +50,7 @@ mesh:
     [brightness_max: 100]   # max BLE brightness value
     [mireds_min: 0]         # min BLE mireds value.
     [mireds_max: 100]       # max BLE mireds value
+    [ack: <true|false>]     # use ack or unack mode
     [relay: <true|false>]   # whether this node should act as relay
   ...
 ```

@@ -42,28 +42,41 @@ class Light(Generic):
         logging.debug(f"Supports: {self._features}")
         return property in self._features
 
-    async def turn_on(self):
-        await self.set_onoff_unack(True, transition_time=0)
+    async def turn_on(self, ack=False):
+        if not ack:
+            await self.set_onoff_unack(True)
+        else:
+            await self.set_onoff(True)
 
-    async def turn_off(self):
-        await self.set_onoff_unack(False, transition_time=0)
+    async def turn_off(self, ack=False):
+        if not ack:
+            await self.set_onoff_unack(False)
+        else:
+            await self.set_onoff(False)
 
-    async def set_brightness(self, brightness):
+    async def set_brightness(self, brightness, ack=False):
         if self._is_model_bound(models.LightLightnessServer):
-            await self.set_lightness_unack(brightness, transition_time=0)
-        elif self._is_model_bound(models.LightCTLServer):
-            await self.set_ctl_unack(brightness=brightness)
+            if not ack:
+                await self.set_lightness_unack(brightness)
+            else:
+                await self.set_lightness(brightness)
 
-    async def kelvin(self, temperature):
+    async def kelvin(self, temperature, ack=False):
         if self._is_model_bound(models.LightCTLServer):
             logging.info(f"{temperature} Kelvin")
-            await self.set_ctl_unack(temperature=temperature)
+            if not ack:
+                await self.set_ctl_unack(temperature=temperature)
+            else:
+                await self.set_ctl(temperature=temperature)
 
-    async def mireds_to_kelvin(self, temperature):
+    async def mireds_to_kelvin(self, temperature, ack=False):
         if self._is_model_bound(models.LightCTLServer):
             kelvin = 1000000 // temperature
             logging.info(f"{temperature} mired = {kelvin} Kelvin")
-            await self.set_ctl_unack(temperature=kelvin)
+            if not ack:
+                await self.set_ctl_unack(temperature=kelvin)
+            else:
+                await self.set_ctl(temperature=kelvin)
 
     async def bind(self, app):
         await super().bind(app)
@@ -86,9 +99,13 @@ class Light(Generic):
 
     async def set_onoff_unack(self, onoff, **kwargs):
         self.notify(Light.OnOffProperty, onoff)
-
         client = self._app.elements[0][models.GenericOnOffClient]
         await client.set_onoff_unack(self.unicast, self._app.app_keys[0][0], onoff, **kwargs)
+
+    async def set_onoff(self, onoff, **kwargs):
+        self.notify(Light.OnOffProperty, onoff)
+        client = self._app.elements[0][models.GenericOnOffClient]
+        await client.set_onoff(self.unicast, self._app.app_keys[0][0], onoff, **kwargs)
 
     async def get_onoff(self):
         client = self._app.elements[0][models.GenericOnOffClient]
@@ -107,7 +124,17 @@ class Light(Generic):
         self.notify(Light.BrightnessProperty, lightness)
 
         client = self._app.elements[0][models.LightLightnessClient]
-        await client.set_lightness_unack(self.unicast, self._app.app_keys[0][0], lightness, **kwargs)
+        await client.set_lightness_unack(
+            destination=self.unicast, app_index=self._app.app_keys[0][0], lightness=lightness, **kwargs
+        )
+
+    async def set_lightness(self, lightness, **kwargs):
+        if lightness > BLE_MESH_MAX_LIGHTNESS:
+            lightness = BLE_MESH_MAX_LIGHTNESS
+        self.notify(Light.BrightnessProperty, lightness)
+
+        client = self._app.elements[0][models.LightLightnessClient]
+        await client.set_lightness([self.unicast], app_index=self._app.app_keys[0][0], lightness=lightness, **kwargs)
 
     async def get_lightness(self):
         client = self._app.elements[0][models.LightLightnessClient]
@@ -130,7 +157,7 @@ class Light(Generic):
         elif not isinstance(result, BaseException):
             logging.info(f"Get Lightness Range: {state}")
 
-    async def set_ctl_unack(self, temperature=None, brightness=None, delta_uv=0, **kwargs):
+    async def set_ctl_unack(self, temperature=None, brightness=None, **kwargs):
         if temperature and temperature < BLE_MESH_MIN_TEMPERATURE:
             temperature = BLE_MESH_MIN_TEMPERATURE
         elif temperature and temperature > BLE_MESH_MAX_TEMPERATURE:
@@ -149,7 +176,27 @@ class Light(Generic):
             brightness = self.retained(Light.BrightnessProperty, BLE_MESH_MAX_LIGHTNESS)
 
         client = self._app.elements[0][models.LightCTLClient]
-        await client.set_ctl_unack(self.unicast, self._app.app_keys[0][0], temperature, brightness, delta_uv, **kwargs)
+        await client.set_ctl_unack(
+            destination=self.unicast,
+            app_index=self._app.app_keys[0][0],
+            ctl_temperature=temperature,
+            ctl_lightness=brightness,
+            **kwargs,
+        )
+
+    async def set_ctl(self, temperature=None, **kwargs):
+        if temperature and temperature < BLE_MESH_MIN_TEMPERATURE:
+            temperature = BLE_MESH_MIN_TEMPERATURE
+        elif temperature and temperature > BLE_MESH_MAX_TEMPERATURE:
+            temperature = BLE_MESH_MAX_TEMPERATURE
+
+        if temperature:
+            self.notify(Light.TemperatureProperty, temperature)
+        else:
+            temperature = self.retained(Light.TemperatureProperty, BLE_MESH_MAX_TEMPERATURE)
+
+        client = self._app.elements[0][models.LightCTLClient]
+        await client.set_ctl([self.unicast], self._app.app_keys[0][0], ctl_temperature=temperature, **kwargs)
 
     async def get_ctl(self):
         client = self._app.elements[0][models.LightCTLClient]

@@ -89,20 +89,20 @@ class GenericLightBridge(HassMqttBridge):
 
     async def _mqtt_set(self, node, payload):
         if "color_temp" in payload:
-            await node.mireds_to_kelvin(payload["color_temp"])
+            await node.mireds_to_kelvin(payload["color_temp"], ack=node.config.optional("ack"))
 
         if "brightness" in payload:
             brightness = int(payload["brightness"])
             desired_brightness = int(brightness * self.brightness_max / 100)
             if desired_brightness > BLE_MESH_MAX_LIGHTNESS:
                 desired_brightness = BLE_MESH_MAX_LIGHTNESS
-            await node.set_brightness(desired_brightness)
+            await node.set_brightness(brightness=desired_brightness, ack=node.config.optional("ack"))
 
         if payload.get("state") == "ON":
-            await node.turn_on()
+            await node.turn_on(ack=node.config.optional("ack"))
 
         if payload.get("state") == "OFF":
-            await node.turn_off()
+            await node.turn_off(ack=node.config.optional("ack"))
 
     async def _notify_onoff(self, node, onoff):
         await self._state(node, onoff)
