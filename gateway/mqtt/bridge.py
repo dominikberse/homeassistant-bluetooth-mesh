@@ -2,6 +2,7 @@
 import asyncio
 import json
 import logging
+from time import sleep
 
 
 class HassMqttBridge:
@@ -62,6 +63,7 @@ class HassMqttBridge:
                     continue
 
                 await handler(node, payload)
+                sleep(0.01)
 
     async def config(self, node):
         """
