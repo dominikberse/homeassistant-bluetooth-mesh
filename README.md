@@ -45,13 +45,14 @@ mesh:
   <hass_device_id>:
     uuid: <bluetooth_mesh_device_uuid>
     name: <hass_device_name>
-    type: light             # thats it for now
-    [brightness_min: 0]     # might be always 0.
-    [brightness_max: 100]   # max BLE brightness value
-    [mireds_min: 0]         # min BLE mireds value.
-    [mireds_max: 100]       # max BLE mireds value
-    [ack: <true|false>]     # use ack or unack mode
-    [relay: <true|false>]   # whether this node should act as relay
+    type: light               # thats it for now
+    [brightness_min: 0]       # might be always 0.
+    [brightness_max: 100]     # max BLE brightness value
+    [mireds_min: 0]           # min BLE mireds value.
+    [mireds_max: 100]         # max BLE mireds value
+    [ack: <true|false>]       # use ack or unack mode
+    [relay: <true|false>]     # whether this node should act as relay
+    [tuya_temp: <true|false>] # Whether this node uses a Tuya specific temperature mapping.
   ...
 ```
 
