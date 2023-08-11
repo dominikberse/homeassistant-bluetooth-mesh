@@ -69,14 +69,26 @@ class Light(Generic):
             else:
                 await self.set_ctl(temperature=temperature)
 
-    async def mireds_to_kelvin(self, temperature, ack=False):
+    async def mireds_to_kelvin(self, temperature, ack=False, is_tuya=False):
         if self._is_model_bound(models.LightCTLServer):
             kelvin = 1000000 // temperature
             logging.info(f"{temperature} mired = {kelvin} Kelvin")
             if not ack:
-                await self.set_ctl_unack(temperature=kelvin)
+                await self.set_ctl_unack(temperature=kelvin, is_tuya=is_tuya)
             else:
-                await self.set_ctl(temperature=kelvin)
+                await self.set_ctl(temperature=kelvin, is_tuya=is_tuya)
+
+    def kelvin_to_tuya_level(self, temperature):
+        if self._is_model_bound(models.LightCTLServer):
+            kelvin = 1000000 // temperature
+            logging.info(f"{temperature} mired = {kelvin} Kelvin")
+            
+            max_kelvin = 1e6 / self.config.optional("mireds_min", BLE_MESH_MIN_MIRED)
+            min_kelvin = 1e6 / self.config.optional("mireds_max", BLE_MESH_MAX_MIRED)
+
+            tuya_level = (temperature-min_kelvin)*(BLE_MESH_MAX_TEMPERATURE-BLE_MESH_MIN_TEMPERATURE)//(max_kelvin-min_kelvin)+BLE_MESH_MIN_TEMPERATURE
+            return int(tuya_level)
+
 
     async def bind(self, app):
         await super().bind(app)
@@ -157,7 +169,7 @@ class Light(Generic):
         elif not isinstance(result, BaseException):
             logging.info(f"Get Lightness Range: {state}")
 
-    async def set_ctl_unack(self, temperature=None, brightness=None, **kwargs):
+    async def set_ctl_unack(self, temperature=None, brightness=None, is_tuya=False, **kwargs):
         if temperature and temperature < BLE_MESH_MIN_TEMPERATURE:
             temperature = BLE_MESH_MIN_TEMPERATURE
         elif temperature and temperature > BLE_MESH_MAX_TEMPERATURE:
@@ -175,6 +187,9 @@ class Light(Generic):
         else:
             brightness = self.retained(Light.BrightnessProperty, BLE_MESH_MAX_LIGHTNESS)
 
+        if is_tuya:
+            temperature = self.kelvin_to_tuya_level(temperature)
+
         client = self._app.elements[0][models.LightCTLClient]
         await client.set_ctl_unack(
             destination=self.unicast,
@@ -184,7 +199,7 @@ class Light(Generic):
             **kwargs,
         )
 
-    async def set_ctl(self, temperature=None, **kwargs):
+    async def set_ctl(self, temperature=None, is_tuya=False, **kwargs):
         if temperature and temperature < BLE_MESH_MIN_TEMPERATURE:
             temperature = BLE_MESH_MIN_TEMPERATURE
         elif temperature and temperature > BLE_MESH_MAX_TEMPERATURE:
@@ -194,6 +209,9 @@ class Light(Generic):
             self.notify(Light.TemperatureProperty, temperature)
         else:
             temperature = self.retained(Light.TemperatureProperty, BLE_MESH_MAX_TEMPERATURE)
+
+        if is_tuya:
+            temperature = self.kelvin_to_tuya_level(temperature)
 
         client = self._app.elements[0][models.LightCTLClient]
         await client.set_ctl([self.unicast], self._app.app_keys[0][0], ctl_temperature=temperature, **kwargs)

@@ -28,8 +28,8 @@ RUN sh ./install-bluez.sh
 
 # install bridge
 WORKDIR /opt/hass-ble-mesh
-RUN git clone https://github.com/minims/homeassistant-bluetooth-mesh.git .
-RUN git checkout master
+RUN git clone https://github.com/louisjennings/homeassistant-bluetooth-mesh.git .
+RUN git checkout temperature-scaling
 RUN pip3 install -r requirements.txt
 
 # mount config
