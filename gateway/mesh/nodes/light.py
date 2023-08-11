@@ -82,13 +82,14 @@ class Light(Generic):
         if self._is_model_bound(models.LightCTLServer):
             kelvin = 1000000 // temperature
             logging.info(f"{temperature} mired = {kelvin} Kelvin")
-            
+
             max_kelvin = 1e6 / self.config.optional("mireds_min", BLE_MESH_MIN_MIRED)
             min_kelvin = 1e6 / self.config.optional("mireds_max", BLE_MESH_MAX_MIRED)
 
-            tuya_level = (temperature-min_kelvin)*(BLE_MESH_MAX_TEMPERATURE-BLE_MESH_MIN_TEMPERATURE)//(max_kelvin-min_kelvin)+BLE_MESH_MIN_TEMPERATURE
+            tuya_level = (temperature - min_kelvin) * (BLE_MESH_MAX_TEMPERATURE - BLE_MESH_MIN_TEMPERATURE) // (
+                max_kelvin - min_kelvin
+            ) + BLE_MESH_MIN_TEMPERATURE
             return int(tuya_level)
-
 
     async def bind(self, app):
         await super().bind(app)
