@@ -89,7 +89,7 @@ class GenericLightBridge(HassMqttBridge):
 
     async def _mqtt_set(self, node, payload):
         if "color_temp" in payload:
-            await node.mireds_to_kelvin(payload["color_temp"], ack=node.config.optional("ack"))
+            await node.mireds_to_kelvin(payload["color_temp"], ack=node.config.optional("ack"),is_tuya=node.config.optional("tuya_temp",False))
 
         if "brightness" in payload:
             brightness = int(payload["brightness"])

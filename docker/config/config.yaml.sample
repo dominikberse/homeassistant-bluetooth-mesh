@@ -15,6 +15,7 @@ mesh:
     mireds_max: 1250        # Max BLE mireds value
     ack: false              # use ack or unack mode
     relay: false            # Whether this node should act as a Bluetooth Relay
+    tuya_temp: false         # Whether this node uses a Tuya specific temperature mapping.
   <hass_device_id_2>:
     uuid: <bluetooth_mesh_device_uuid>
     name: <hass_device_name>
@@ -25,3 +26,4 @@ mesh:
     mireds_max: 1250        # Max BLE mireds value
     ack: true               # use ack or unack mode
     relay: false            # Whether this node should act as a Bluetooth Relay
+    tuya_temp: false         # Whether this node uses a Tuya specific temperature mapping.
