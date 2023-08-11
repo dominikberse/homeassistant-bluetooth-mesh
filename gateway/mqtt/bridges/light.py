@@ -59,8 +59,8 @@ class GenericLightBridge(HassMqttBridge):
             color_modes.add("color_temp")
             # convert from Kelvin to mireds
             # TODO: look up max/min values from device
-            message["min_mireds"] = node.config.optional("min_mireds", BLE_MESH_MIN_MIRED)
-            message["max_mireds"] = node.config.optional("max_mireds", BLE_MESH_MAX_MIRED)
+            message["min_mireds"] = node.config.optional("mireds_min", BLE_MESH_MIN_MIRED)
+            message["max_mireds"] = node.config.optional("mireds_max", BLE_MESH_MAX_MIRED)
 
         if color_modes:
             message["color_mode"] = True
