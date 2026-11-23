@@ -1,4 +1,3 @@
-from sre_constants import BIGCHARSET
 from mqtt.bridge import HassMqttBridge
 from mesh.nodes.light import Light
 
@@ -16,33 +15,33 @@ class GenericLightBridge(HassMqttBridge):
         return "light"
 
     async def config(self, node):
-        color_modes = set()
+        node_id = node.config.require("id")
         message = {
             "~": self._messenger.node_topic(self.component, node),
-            "name": node.config.optional("name"),
-            "unique_id": node.config.require("id"),
-            "object_id": node.config.require("id"),
+            "name": None,
+            "unique_id": node_id,
             "command_topic": "~/set",
             "state_topic": "~/state",
             "schema": "json",
+            "device": {
+                "identifiers": [f"ble_mesh_{node.uuid}"],
+                "name": node.config.optional("name") or node_id,
+                "manufacturer": "Bluetooth Mesh",
+            },
         }
 
-        if node.supports(Light.BrightnessProperty):
-            message["brightness_scale"] = 50
-            message["brightness"] = True
-
+        # Home Assistant expects supported_color_modes (legacy 'brightness'/'color_mode' flags were removed)
         if node.supports(Light.TemperatureProperty):
-            color_modes.add("color_temp")
-            # convert from Kelvin to mireds
-            # TODO: look up max/min values from device
-            # message['min_mireds'] = 1000000 // 7000
-            # message['max_mireds'] = 1000000 // 2000
+            message["supported_color_modes"] = ["color_temp"]
+            message["brightness_scale"] = 50
+        elif node.supports(Light.BrightnessProperty):
+            message["supported_color_modes"] = ["brightness"]
+            message["brightness_scale"] = 50
+        else:
+            message["supported_color_modes"] = ["onoff"]
 
-        if color_modes:
-            message["color_mode"] = True
-            message["supported_color_modes"] = list(color_modes)
-
-        await self._messenger.publish(self.component, node, "config", message)
+        # retain, so Home Assistant rediscovers the light after its own restart
+        await self._messenger.publish(self.component, node, "config", message, retain=True)
 
     async def _state(self, node, onoff):
         """
@@ -57,6 +56,7 @@ class GenericLightBridge(HassMqttBridge):
             message["brightness"] = node.retained(Light.BrightnessProperty, 100)
         if onoff and node.supports(Light.TemperatureProperty):
             message["color_temp"] = node.retained(Light.TemperatureProperty, 100)
+            message["color_mode"] = "color_temp"
 
         await self._messenger.publish(self.component, node, "state", message, retain=True)
 

@@ -1,5 +1,6 @@
 #!/bin/bash
 
+rm -f /run/dbus/pid
 service dbus start
 /usr/libexec/bluetooth/bluetooth-meshd &
 

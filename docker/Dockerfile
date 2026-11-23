@@ -1,4 +1,4 @@
-FROM python:3.10-bullseye
+FROM python:3.10-bookworm
 
 RUN apt-get -y update && apt-get -y upgrade && apt-get -y install \
     build-essential \
@@ -15,22 +15,17 @@ RUN apt-get -y update && apt-get -y upgrade && apt-get -y install \
 
 # install BlueZ with mesh support
 WORKDIR /opt/build
-COPY ./scripts/install-ell.sh .
-RUN sh ./install-ell.sh
+COPY docker/scripts/install-ell.sh docker/scripts/install-json-c.sh docker/scripts/install-bluez.sh ./
+RUN sed -i 's/\r$//' ./*.sh \
+    && sh ./install-ell.sh \
+    && cd /opt/build && sh ./install-json-c.sh \
+    && cd /opt/build && sh ./install-bluez.sh
 
-WORKDIR /opt/build
-COPY ./scripts/install-json-c.sh .
-RUN sh ./install-json-c.sh
-
-WORKDIR /opt/build
-COPY ./scripts/install-bluez.sh .
-RUN sh ./install-bluez.sh
-
-# install bridge
+# install bridge from the local source tree (build context is the repository root)
 WORKDIR /opt/hass-ble-mesh
-RUN git clone https://github.com/dominikberse/homeassistant-bluetooth-mesh.git .
-RUN git checkout master
-RUN pip3 install -r requirements.txt
+COPY requirements.txt .
+RUN pip3 install --no-cache-dir -r requirements.txt
+COPY gateway ./gateway
 
 # mount config
 WORKDIR /config
@@ -38,5 +33,6 @@ VOLUME /config
 
 # run bluetooth service and bridge
 WORKDIR /opt/hass-ble-mesh/gateway
-COPY ./scripts/entrypoint.sh .
+COPY docker/scripts/entrypoint.sh .
+RUN sed -i 's/\r$//' entrypoint.sh
 ENTRYPOINT [ "/bin/bash", "entrypoint.sh" ]
