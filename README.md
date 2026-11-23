@@ -74,11 +74,10 @@ Since the web interface is not yet available, you need to use the command line t
 docker compose exec app /bin/bash
 ```
 
-From there, it might be neccessary to stop the running python process.
+From there, it might be neccessary to stop the running python process (`ps`/`pkill` are not installed in the image):
 
 ```
-ps -ef | grep gateway
-kill <PID>
+kill $(grep -l "gateway.py" /proc/[0-9]*/cmdline | cut -d/ -f3)
 ```
 
 I placed the configuration files in `/config`, so you need to add `--basedir /config` to every command. So for example the scan command would look like this:
@@ -87,11 +86,57 @@ I placed the configuration files in `/config`, so you need to add `--basedir /co
 python3 gateway.py --basedir /config scan
 ```
 
-Once you are done, switch back to the host system (simply `exit`) and restart the container for the changes to take effect.
+Once you are done, switch back to the host system (simply `exit`) and recreate the container for the changes to take effect.
+Prefer recreating over `docker compose restart`: images built before the `entrypoint.sh` fix leave a stale `/run/dbus/pid` behind, and D-Bus then fails to start after a restart.
 
 ```
-docker compose restart
+docker compose up -d --force-recreate
 ```
+
+### Persistent state (important)
+
+The container keeps state that **must survive** recreating the container or rebuilding the image. `docker-compose.yaml` mounts it from the `docker/` folder:
+
+| Host path (`docker/…`) | Container path | Content |
+|---|---|---|
+| `config/` | `/config` | `config.yaml` (your settings) and `store.yaml` (provisioned nodes, keys, addresses) |
+| `mesh/` | `/var/lib/bluetooth/mesh` | `bluetooth-meshd` node state: **device keys of the provisioned devices**, sequence numbers, replay protection |
+| `token/` | `/root/.cache/bluetooth-mesh` | attach token of the gateway's local mesh node |
+| `machine-id` (file) | `/etc/machine-id` (read only) | pins the identity of the gateway's local mesh node |
+
+Why this matters:
+
+- **Device keys only exist in `mesh/`.** `store.yaml` does not contain them. If `mesh/` is lost, the gateway can no longer configure the devices (binding fails with a composition data timeout and nothing is published to MQTT). The only fix is to factory-reset every device and provision it again.
+- **The local node UUID is derived from `/etc/machine-id`** (`uuid5(machine-id, "/org/hass/mesh")`). Every newly built image has a different machine-id, so without the pinned file each rebuild creates a new local node without the device keys. Create the file once before the first start, for example `cat /proc/sys/kernel/random/uuid | tr -d - > docker/machine-id`, and never change it.
+- **Sequence numbers must never go backwards.** Devices drop messages from address `0001` whose sequence number is lower than one they have already seen. Never delete `mesh/` while devices are still provisioned.
+- The directories are created by root inside the container. Edit them via `docker compose exec app …` or a root shell, not as a normal user.
+- Docker bind mounts don't work on paths containing `:` (for example GVFS/SMB mounts like `smb-share:server=…`), and dockerd may not be able to read such mounts at all. In that case keep the state in a local directory (for example `~/hass-ble-mesh/`) and adjust the volume paths.
+
+### Building and running a prebuilt image
+
+The image is built from the **local source tree**: the build context is the repository root (`context: ..` in `docker-compose.yaml`), so local changes to `gateway/` end up in the image. Windows line endings (CRLF) in the scripts are stripped during the build.
+
+Build and push to your own registry (from the repository root):
+
+```
+docker build -f docker/Dockerfile -t <registry>/homeassistant-bluetooth-mesh:latest .
+docker push <registry>/homeassistant-bluetooth-mesh:latest
+```
+
+A registry served over plain HTTP must be listed under `insecure-registries` in `/etc/docker/daemon.json` on every host that pushes or pulls (needs root, then restart docker).
+
+Run the image without compose (equivalent to `docker-compose.yaml`):
+
+```
+docker run -d -t --name hass-ble-mesh --privileged --network host --restart unless-stopped \
+  -v ~/hass-ble-mesh/config:/config \
+  -v ~/hass-ble-mesh/mesh:/var/lib/bluetooth/mesh \
+  -v ~/hass-ble-mesh/token:/root/.cache/bluetooth-mesh \
+  -v ~/hass-ble-mesh/machine-id:/etc/machine-id:ro \
+  <registry>/homeassistant-bluetooth-mesh:latest
+```
+
+To apply config changes or a new image, recreate the container (`docker rm -f hass-ble-mesh`, then the `docker run` above). The base image is `python:3.10-bookworm`; Debian bullseye is end-of-life and its package mirrors no longer work.
 
 ## Manual setup
 
@@ -118,6 +163,9 @@ _Remember that you need to add the `--basedir /config` switch after `gateway.py`
 1. Provision the device with `python3 gateway.py prov --uuid <uuid> add`.
 1. Configure the device with `python3 gateway.py prov --uuid <uuid> config`.
    _Do not skip this step, otherwise the device is not part of the application network and it will not respond properly._
+1. Recreate the container (or restart the gateway) so the new device is bridged to MQTT.
+
+The gateway publishes a retained MQTT discovery message per light on `homeassistant/light/<node_id>/<id>/config`, including a `device` block, so each light appears in Home Assistant under the MQTT integration's devices.
 
 - To list all provisioned devices use `python3 gateway.py prov list`.
 - You can remove and reset a device with `python3 gateway.py prov --uuid <uuid> reset`.
